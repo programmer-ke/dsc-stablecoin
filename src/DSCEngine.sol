@@ -86,7 +86,7 @@ contract DSCEngine is ReentrancyGuard {
 
     /// @param tokenCollateralAddress: The ERC20 address of the collateral being deposited
     /// @param amountCollateral: The amount of collateral being deposited
-    function depositCollateralAndMintDSC(address tokenCollateralAddress, uint256 amountCollateral)
+    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         external
         moreThanZero(amountCollateral)
         isAllowedToken(tokenCollateralAddress)
@@ -101,7 +101,7 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    function depositCollateral() external {}
+    function depositCollateralAndMintDSC() external {}
 
     function redeemCollateralForDSC() external {}
 
