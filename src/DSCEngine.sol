@@ -96,24 +96,18 @@ contract DSCEngine is ReentrancyGuard {
                              External Functions
     //////////////////////////////////////////////////////////////*/
 
-    /// @param tokenCollateralAddress: The ERC20 address of the collateral being deposited
-    /// @param amountCollateral: The amount of collateral being deposited
-    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
-        external
-        moreThanZero(amountCollateral)
-        isAllowedToken(tokenCollateralAddress)
-        nonReentrant
-    {
-        s_collateralDeposited[msg.sender][tokenCollateralAddress] += amountCollateral;
-        emit CollateralDeposited(msg.sender, tokenCollateralAddress, amountCollateral);
-
-        bool success = IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
-        if (!success) {
-            revert DSCEngine__TransferFailed();
-        }
+    /// @notice This function will deposit collateral and mint DSC in one tx
+    /// @param tokenCollateralAddress: the address of the token to deposit as collateral
+    /// @param amountCollateral: The amount of collateral to deposit
+    /// @param amountDscToMint: The amount of DecentralizedStableCoin to mint
+    function depositCollateralAndMintDSC(
+        address tokenCollateralAddress,
+        uint256 amountCollateral,
+        uint256 amountDscToMint
+    ) external {
+        depositCollateral(tokenCollateralAddress, amountCollateral);
+        mintDSC(amountDscToMint);
     }
-
-    function depositCollateralAndMintDSC() external {}
 
     function redeemCollateralForDSC() external {}
 
@@ -128,6 +122,23 @@ contract DSCEngine is ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                             Public Functions
     //////////////////////////////////////////////////////////////*/
+
+    /// @param tokenCollateralAddress: The ERC20 address of the collateral being deposited
+    /// @param amountCollateral: The amount of collateral being deposited
+    function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
+        public
+        moreThanZero(amountCollateral)
+        isAllowedToken(tokenCollateralAddress)
+        nonReentrant
+    {
+        s_collateralDeposited[msg.sender][tokenCollateralAddress] += amountCollateral;
+        emit CollateralDeposited(msg.sender, tokenCollateralAddress, amountCollateral);
+
+        bool success = IERC20(tokenCollateralAddress).transferFrom(msg.sender, address(this), amountCollateral);
+        if (!success) {
+            revert DSCEngine__TransferFailed();
+        }
+    }
 
     function mintDSC(uint256 amountDscToMint) public moreThanZero(amountDscToMint) nonReentrant {
         s_DscMinted[msg.sender] += amountDscToMint;
