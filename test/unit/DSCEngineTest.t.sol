@@ -8,6 +8,7 @@ import {DecentralizedStableCoin} from "src/DecentralizedStableCoin.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {ERC20Mock} from "test/mocks/ERC20Mock.sol";
+import {MockV3Aggregator} from "test/mocks/MockV3Aggregator.sol";
 
 contract DSCEngineTest is Test {
     DeployDSC deployer;
@@ -15,6 +16,7 @@ contract DSCEngineTest is Test {
     DSCEngine dsce;
     HelperConfig config;
     address weth;
+    address wbtc;
     address ethUsdPriceFeed;
     address btcUsdPriceFeed;
     address public USER = makeAddr("user");
@@ -24,9 +26,10 @@ contract DSCEngineTest is Test {
     function setUp() public {
         deployer = new DeployDSC();
         (dsc, dsce, config) = deployer.run();
-        (ethUsdPriceFeed, btcUsdPriceFeed, weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, weth, wbtc,) = config.activeNetworkConfig();
 
         ERC20Mock(weth).mint(USER, STARTING_ERC20_BALANCE);
+        ERC20Mock(wbtc).mint(USER, STARTING_ERC20_BALANCE);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -125,7 +128,12 @@ contract DSCEngineTest is Test {
         // deposit 10 ether
         // 1 ether = 2000 usd
         // 200% collateralization, means can mint max 10,000 usd
-        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, 0));
+        uint256 collateralValue = dsce.getUsdValue(weth, 10 ether);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 expectedHF = (adjustedCollateral * 1e18) / (adjustedCollateral + 1e18);
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHF));
 
         vm.prank(USER);
         // max possible DSC mint is 10_000
@@ -137,6 +145,135 @@ contract DSCEngineTest is Test {
         // should have good health
         uint256 healthFactor = dsce.getHealthFactor(USER);
         assertTrue(healthFactor > 1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                     New Health Factor Tests
+    //////////////////////////////////////////////////////////////*/
+
+    function testHealthFactorWithMultipleCollateralTokens() public {
+        // Deposit both WETH and WBTC
+        uint256 wethAmount = 5 ether;
+        uint256 wbtcAmount = 1 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), wethAmount);
+        ERC20Mock(wbtc).approve(address(dsce), wbtcAmount);
+        dsce.depositCollateral(weth, wethAmount);
+        dsce.depositCollateral(wbtc, wbtcAmount);
+        vm.stopPrank();
+
+        // Compute expected collateral value
+        uint256 wethValue = dsce.getUsdValue(weth, wethAmount);
+        uint256 wbtcValue = dsce.getUsdValue(wbtc, wbtcAmount);
+        uint256 totalCollateralValue = wethValue + wbtcValue;
+
+        // Mint DSC up to 50% of adjusted collateral (threshold = 50%)
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (totalCollateralValue * liquidationThreshold) / liquidationPrecision;
+        // Mint exactly adjustedCollateral (health factor = 1)
+        uint256 dscToMint = adjustedCollateral;
+
+        vm.prank(USER);
+        dsce.mintDSC(dscToMint);
+
+        uint256 healthFactor = dsce.getHealthFactor(USER);
+        assertEq(healthFactor, 1e18);
+    }
+
+    function testHealthFactorEdgeCaseAtThreshold() public {
+        // Deposit enough collateral so that adjusted collateral equals a specific DSC amount
+        // We'll compute the exact amount needed for health factor = 1
+        uint256 collateralAmount = 10 ether; // 10 WETH
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        vm.stopPrank();
+
+        uint256 collateralValue = dsce.getUsdValue(weth, collateralAmount);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
+
+        // Mint exactly adjustedCollateral (health factor = 1)
+        vm.prank(USER);
+        dsce.mintDSC(adjustedCollateral);
+
+        // Health factor should be >= 1e18 (due to integer division)
+        uint256 healthFactor = dsce.getHealthFactor(USER);
+        assertGe(healthFactor, 1e18);
+
+        // Attempt to mint one extra wei should break health factor
+        uint256 expectedHF = (adjustedCollateral * 1e18) / (adjustedCollateral + 1);
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHF));
+        vm.prank(USER);
+        dsce.mintDSC(1);
+    }
+
+    function testHealthFactorAfterPriceDropAndLiquidation() public {
+        ERC20Mock(weth).mint(USER, 20 ether); // ensure user has enough balance
+
+        // Deposit collateral
+        uint256 collateralAmount = 20 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+
+        // Mint DSC up to only 80% of the adjusted collateral (more conservative)
+        // This leaves room for price drop and liquidation to work
+        uint256 collateralValue = dsce.getUsdValue(weth, collateralAmount);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 dscToMint = (adjustedCollateral * 8) / 10; // 80%
+        dsce.mintDSC(dscToMint);
+        vm.stopPrank();
+
+        // Simulate a smaller price drop (from $2000 to $1500, 25% drop)
+        address priceFeed = dsce.getPriceFeed(weth);
+        MockV3Aggregator aggregator = MockV3Aggregator(priceFeed);
+        aggregator.updateAnswer(1500e8);
+
+        // Health factor should now be below 1 but not 0
+        uint256 healthFactorAfterDrop = dsce.getHealthFactor(USER);
+        assertLt(healthFactorAfterDrop, dsce.getMinHealthFactor());
+        // Make sure it's not 0 (with these numbers it should be > 0)
+        assertGt(healthFactorAfterDrop, 0);
+
+        // Prepare liquidator
+        address liquidator = makeAddr("liquidator");
+        // Give liquidator some DSC to cover debt
+        vm.prank(address(dsce));
+        dsc.mint(liquidator, dscToMint);
+        vm.startPrank(liquidator);
+        dsc.approve(address(dsce), dscToMint);
+
+        uint256 liquidatorStartingDSCBalance = dsc.balanceOf(liquidator);
+        uint256 liquidatorStartingWethBalance = ERC20Mock(weth).balanceOf(liquidator);
+        // Liquidate enough to improve health factor
+        // With 20 ETH @ $1500: collateral = $30,000, adjusted = $15,000
+        // DSC minted = $16,000 (80% of original $20,000 adjusted)
+        // Health factor = 15,000 / 16,000 * 1e18 = 0.9375 * 1e18
+        // Liquidate 4,000 DSC (25% of debt)
+        uint256 debtToCover = dscToMint / 4;
+        dsce.liquidate(weth, USER, debtToCover);
+        vm.stopPrank();
+
+        // Health factor of user should have improved
+        uint256 healthFactorAfterLiquidation = dsce.getHealthFactor(USER);
+        assertGt(healthFactorAfterLiquidation, healthFactorAfterDrop);
+
+        // Liquidation bonus to liquidator from user is 10%
+        // Liquidator deposits dsc to cover i.e. 4000
+        // User is less 4000 DSC balance
+        // User is less covered eth amount + liquidation bonus
+        // Liquidator is less 4000 DSC (burnt by contract)
+        // Liquidator is up covered eth amount + bonus
+        uint256 liquidatorEndingDSCBalance = dsc.balanceOf(liquidator);
+        uint256 liquidatorEndingWethBalance = ERC20Mock(weth).balanceOf(liquidator);
+
+        assertEq(liquidatorStartingDSCBalance - 4000 * 1e18, liquidatorEndingDSCBalance);
+        assertTrue(liquidatorStartingWethBalance < liquidatorEndingWethBalance);
     }
 }
 
