@@ -163,7 +163,7 @@ contract DSCEngine is ReentrancyGuard {
         return _healthFactor(user);
     }
 
-    function getMinHealthFactor() external view returns (uint256) {
+    function getMinHealthFactor() external pure returns (uint256) {
         return MIN_HEALTH_FACTOR;
     }
 
@@ -284,6 +284,12 @@ contract DSCEngine is ReentrancyGuard {
     /// @dev If a user goes below 1, they can be liquidated
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
+
+        if (totalDscMinted == 0) {
+            // No DSC minted, infite health factor
+            return type(uint256).max;
+        }
+
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return collateralAdjustedForThreshold / totalDscMinted;
     }

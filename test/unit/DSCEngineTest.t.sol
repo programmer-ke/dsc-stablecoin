@@ -131,5 +131,12 @@ contract DSCEngineTest is Test {
         // max possible DSC mint is 10_000
         dsce.depositCollateralAndMintDsc(weth, 10 ether, 10_001 ether);
     }
+
+    function testHealthFactorAfterCollateralDeposit() public depositedCollateral {
+        // collateral deposited but DSC not minted
+        // should have good health
+        uint256 healthFactor = dsce.getHealthFactor(USER);
+        assertTrue(healthFactor > 1);
+    }
 }
 
