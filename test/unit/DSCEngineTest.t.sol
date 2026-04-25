@@ -6,7 +6,7 @@ import {DeployDSC} from "script/DeployDSC.s.sol";
 import {DSCEngine} from "src/DSCEngine.sol";
 import {DecentralizedStableCoin} from "src/DecentralizedStableCoin.sol";
 import {HelperConfig} from "script/HelperConfig.s.sol";
-import {Test, console} from "forge-std/Test.sol";
+import {Test, console, stdError} from "forge-std/Test.sol";
 import {ERC20Mock} from "test/mocks/ERC20Mock.sol";
 import {MockV3Aggregator} from "test/mocks/MockV3Aggregator.sol";
 
@@ -459,6 +459,118 @@ contract DSCEngineTest is Test {
         vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, healthFactorAfterBurn));
         vm.prank(USER);
         dsce.burnDsc(burnAmount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          Deposit & Redeem Tests
+    //////////////////////////////////////////////////////////////*/
+
+    function testRedeemCollateralRevertsIfHealthFactorBreaks() public {
+        // Deposit collateral and mint DSC to the edge
+        uint256 collateralAmount = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        // Mint DSC up to adjusted collateral (health factor = 1)
+        uint256 collateralValue = dsce.getUsdValue(weth, 10 ether);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
+        dsce.mintDSC(adjustedCollateral);
+        vm.stopPrank();
+
+        // Attempt to redeem a small amount of collateral
+        uint256 redeemAmount = 1; // 1 wei
+        // Compute expected health factor after redeem
+        uint256 newCollateralValue = dsce.getUsdValue(weth, 10 ether - redeemAmount);
+        uint256 newAdjustedCollateral = (newCollateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 expectedHealthFactor = (newAdjustedCollateral * dsce.getPrecision()) / adjustedCollateral;
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHealthFactor));
+        vm.prank(USER);
+        dsce.redeemCollateral(weth, redeemAmount);
+    }
+
+    function testRedeemCollateralFromEmptyBalanceReverts() public {
+        // No deposit, attempt to redeem
+        uint256 redeemAmount = 1 ether;
+        // Expect arithmetic underflow (since balance is 0)
+        vm.expectRevert(stdError.arithmeticError);
+        vm.prank(USER);
+        dsce.redeemCollateral(weth, redeemAmount);
+    }
+
+    function testDepositMultipleCollateralTypesAndRedeemOne() public {
+        // Deposit two types
+        uint256 wethAmount = 5 ether;
+        uint256 wbtcAmount = 1 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), wethAmount);
+        ERC20Mock(wbtc).approve(address(dsce), wbtcAmount);
+        dsce.depositCollateral(weth, wethAmount);
+        dsce.depositCollateral(wbtc, wbtcAmount);
+        // Mint some DSC (half of allowed)
+        uint256 totalCollateralValue = dsce.getAccountCollateralValue(USER);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (totalCollateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 dscToMint = adjustedCollateral / 2;
+        dsce.mintDSC(dscToMint);
+        vm.stopPrank();
+
+        // Record initial balances and health factor
+        (uint256 initialDscMinted, uint256 initialCollateralValue) = dsce.getAccountInformation(USER);
+        uint256 initialHealthFactor = dsce.getHealthFactor(USER);
+        assertGt(initialHealthFactor, dsce.getMinHealthFactor());
+
+        // Redeem some WETH
+        uint256 redeemWeth = 1 ether;
+        vm.prank(USER);
+        dsce.redeemCollateral(weth, redeemWeth);
+
+        // Verify state
+        (uint256 finalDscMinted, uint256 finalCollateralValue) = dsce.getAccountInformation(USER);
+        assertEq(finalDscMinted, initialDscMinted);
+        uint256 expectedCollateralValueRemoved = dsce.getUsdValue(weth, redeemWeth);
+        assertEq(finalCollateralValue, initialCollateralValue - expectedCollateralValueRemoved);
+        // Health factor should still be safe
+        uint256 finalHealthFactor = dsce.getHealthFactor(USER);
+        assertGt(finalHealthFactor, dsce.getMinHealthFactor());
+    }
+
+    function testRedeemCollateralForDscWorks() public {
+        // Deposit collateral
+        uint256 collateralAmount = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        // Mint some DSC
+        uint256 dscToMint = 5000 ether;
+        dsce.mintDSC(dscToMint);
+        vm.stopPrank();
+
+        // Approve DSCEngine to burn DSC
+        vm.prank(USER);
+        dsc.approve(address(dsce), dscToMint);
+
+        // Record initial state
+        (uint256 initialDscMinted, uint256 initialCollateralValue) = dsce.getAccountInformation(USER);
+        uint256 initialHealthFactor = dsce.getHealthFactor(USER);
+        assertGt(initialHealthFactor, dsce.getMinHealthFactor());
+
+        // Redeem collateral and burn DSC
+        uint256 redeemCollateralAmount = 2 ether;
+        uint256 burnDscAmount = 1000 ether;
+        vm.prank(USER);
+        dsce.redeemCollateralForDsc(weth, redeemCollateralAmount, burnDscAmount);
+
+        // Verify state
+        (uint256 finalDscMinted, uint256 finalCollateralValue) = dsce.getAccountInformation(USER);
+        assertEq(finalDscMinted, initialDscMinted - burnDscAmount);
+        uint256 expectedCollateralValueRemoved = dsce.getUsdValue(weth, redeemCollateralAmount);
+        assertEq(finalCollateralValue, initialCollateralValue - expectedCollateralValueRemoved);
+        // Health factor should still be safe (likely improved)
+        uint256 finalHealthFactor = dsce.getHealthFactor(USER);
+        assertGt(finalHealthFactor, dsce.getMinHealthFactor());
     }
 }
 
