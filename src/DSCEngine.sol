@@ -195,6 +195,34 @@ contract DSCEngine is ReentrancyGuard {
         return LIQUIDATION_BONUS;
     }
 
+    function getPrecision() external pure returns (uint256) {
+        return PRECISION;
+    }
+
+    function getAdditionalFeedPrecision() external pure returns (uint256) {
+        return ADDITIONAL_FEED_PRECISION;
+    }
+
+    function getCollateralTokens() external view returns (address[] memory) {
+        return s_collateralTokens;
+    }
+
+    function getDsc() external view returns (address) {
+        return address(i_dsc);
+    }
+
+    function getCollateralTokenPriceFeed(address token) external view returns (address) {
+        return s_priceFeeds[token];
+    }
+
+    function calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        external
+        pure
+        returns (uint256)
+    {
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             Public Functions
     //////////////////////////////////////////////////////////////*/
@@ -275,6 +303,20 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
+    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (totalDscMinted == 0) {
+            // No DSC minted, infite health factor
+            return type(uint256).max;
+        }
+
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             Private Functions
     //////////////////////////////////////////////////////////////*/
@@ -304,13 +346,7 @@ contract DSCEngine is ReentrancyGuard {
     /// @dev If a user goes below 1e18, they can be liquidated
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
-        if (totalDscMinted == 0) {
-            // No DSC minted, infite health factor
-            return type(uint256).max;
-        }
-
-        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
-        return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
     }
 
     function _getAccountInformation(address user)
