@@ -275,5 +275,81 @@ contract DSCEngineTest is Test {
         assertEq(liquidatorStartingDSCBalance - 4000 * 1e18, liquidatorEndingDSCBalance);
         assertTrue(liquidatorStartingWethBalance < liquidatorEndingWethBalance);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                          New Liquidation Tests
+    //////////////////////////////////////////////////////////////*/
+
+    function testLiquidationRevertsIfHealthFactorOk() public {
+        // Setup: user deposits collateral and mints DSC, but stays above liquidation threshold
+        uint256 collateralAmount = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        // Mint a small amount of DSC that keeps health factor > 1
+        uint256 collateralValue = dsce.getUsdValue(weth, collateralAmount);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 safeDscToMint = adjustedCollateral / 2; // 50% of adjusted collateral -> health factor = 2
+        dsce.mintDSC(safeDscToMint);
+        vm.stopPrank();
+
+        // Verify health factor is >= MIN_HEALTH_FACTOR
+        uint256 healthFactor = dsce.getHealthFactor(USER);
+        assertGe(healthFactor, dsce.getMinHealthFactor());
+
+        // Prepare liquidator with DSC
+        address liquidator = makeAddr("liquidator");
+        vm.prank(address(dsce));
+        dsc.mint(liquidator, safeDscToMint);
+        vm.startPrank(liquidator);
+        dsc.approve(address(dsce), safeDscToMint);
+
+        // Attempt liquidation should revert
+        vm.expectRevert(DSCEngine.DSCEngine__HealthFactorOk.selector);
+        dsce.liquidate(weth, USER, safeDscToMint);
+        vm.stopPrank();
+    }
+
+    function testLiquidationRevertsIfHealthFactorNotImproved() public {
+        // Create an undercollateralized position
+        uint256 collateralAmount = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        // Mint DSC up to adjusted collateral (health factor = 1)
+        uint256 collateralValue = dsce.getUsdValue(weth, collateralAmount);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
+        dsce.mintDSC(adjustedCollateral);
+        vm.stopPrank();
+
+        // Simulate price drop to make health factor < 1
+        address priceFeed = dsce.getPriceFeed(weth);
+        MockV3Aggregator aggregator = MockV3Aggregator(priceFeed);
+        // Drop price from $2000 to $1000 (50% drop)
+        aggregator.updateAnswer(1000e8);
+
+        uint256 healthFactorBefore = dsce.getHealthFactor(USER);
+        assertLt(healthFactorBefore, dsce.getMinHealthFactor());
+
+        // Prepare liquidator with DSC
+        address liquidator = makeAddr("liquidator");
+        uint256 debtToCover = adjustedCollateral / 10; // Cover 10% of debt
+        vm.prank(address(dsce));
+        dsc.mint(liquidator, debtToCover);
+        vm.startPrank(liquidator);
+        dsc.approve(address(dsce), debtToCover);
+
+        // Attempt liquidation with a debtToCover that does NOT improve health factor
+        // In this scenario, because the price drop is severe, covering a small amount may not improve health factor
+        // We'll use a debtToCover that is too small to move the needle
+        // The contract should revert with DSCEngine__HealthFactorNotImproved
+        vm.expectRevert(DSCEngine.DSCEngine__HealthFactorNotImproved.selector);
+        dsce.liquidate(weth, USER, debtToCover);
+        vm.stopPrank();
+    }
 }
 
