@@ -351,5 +351,114 @@ contract DSCEngineTest is Test {
         dsce.liquidate(weth, USER, debtToCover);
         vm.stopPrank();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                          New Minting & Burning Tests
+    //////////////////////////////////////////////////////////////*/
+
+    function testMintDSCIncreasesDebt() public {
+        // Deposit collateral first
+        uint256 collateralAmount = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        vm.stopPrank();
+
+        // Record initial debt (should be zero)
+        (uint256 initialDscMinted, uint256 initialCollateralValue) = dsce.getAccountInformation(USER);
+        assertEq(initialDscMinted, 0);
+        assertEq(initialCollateralValue, dsce.getUsdValue(weth, collateralAmount));
+
+        // Mint some DSC
+        uint256 dscToMint = 5000 ether; // 5000 DSC
+        vm.prank(USER);
+        dsce.mintDSC(dscToMint);
+
+        // Verify debt increased
+        (uint256 finalDscMinted, uint256 finalCollateralValue) = dsce.getAccountInformation(USER);
+        assertGt(finalDscMinted, initialDscMinted);
+        assertEq(finalCollateralValue, initialCollateralValue);
+    }
+
+    function testBurnDSCDecreasesDebt() public {
+        // Deposit collateral and mint DSC
+        uint256 collateralAmount = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        uint256 dscToMint = 5000 ether;
+        dsce.mintDSC(dscToMint);
+        vm.stopPrank();
+
+        // Record initial debt
+        (uint256 initialDscMinted,) = dsce.getAccountInformation(USER);
+        assertEq(initialDscMinted, dscToMint);
+
+        // Burn a portion of the minted DSC
+        uint256 burnAmount = 2000 ether;
+        // Need to approve the DSCEngine to spend USER's DSC
+        vm.prank(USER);
+        dsc.approve(address(dsce), burnAmount);
+        vm.prank(USER);
+        dsce.burnDsc(burnAmount);
+
+        // Verify debt decreased
+        (uint256 finalDscMinted,) = dsce.getAccountInformation(USER);
+        assertEq(finalDscMinted, dscToMint - burnAmount);
+    }
+
+    function testMintDSCRevertsIfNoCollateral() public {
+        // Do NOT deposit any collateral
+        // Attempt to mint DSC directly
+        uint256 dscToMint = 1000 ether;
+        // Should revert because health factor would be broken (zero collateral)
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, 0));
+        vm.prank(USER);
+        dsce.mintDSC(dscToMint);
+    }
+
+    function testBurnDSCRevertsIfHealthFactorStillBroken() public {
+        // Create an undercollateralized position
+        uint256 collateralAmount = 10 ether;
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(dsce), collateralAmount);
+        dsce.depositCollateral(weth, collateralAmount);
+        // Mint DSC up to adjusted collateral (health factor = 1)
+        uint256 collateralValue = dsce.getUsdValue(weth, collateralAmount);
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
+        dsce.mintDSC(adjustedCollateral);
+        vm.stopPrank();
+
+        // Simulate price drop to make health factor < 1
+        address priceFeed = dsce.getPriceFeed(weth);
+        MockV3Aggregator aggregator = MockV3Aggregator(priceFeed);
+        // Drop price from $2000 to $1000 (50% drop)
+        aggregator.updateAnswer(1000e8);
+
+        // Verify health factor is broken
+        uint256 healthFactorBefore = dsce.getHealthFactor(USER);
+        assertLt(healthFactorBefore, dsce.getMinHealthFactor());
+
+        // Attempt to burn a small amount of DSC that does NOT bring health factor back to safe level
+        uint256 burnAmount = 1 ether; // tiny amount
+
+        // Compute expected health factor after burning
+        // Get current account information
+        (uint256 currentDscMinted, uint256 currentCollateralValue) = dsce.getAccountInformation(USER);
+        uint256 dscMintedAfterBurn = currentDscMinted - burnAmount;
+        // Use the contract's calculateHealthFactor function
+        uint256 healthFactorAfterBurn = dsce.calculateHealthFactor(dscMintedAfterBurn, currentCollateralValue);
+
+        // Need approval
+        vm.prank(USER);
+        dsc.approve(address(dsce), burnAmount);
+        // Should revert because health factor remains broken after burning
+        // Match the exact error with computed health factor
+        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, healthFactorAfterBurn));
+        vm.prank(USER);
+        dsce.burnDsc(burnAmount);
+    }
 }
 
