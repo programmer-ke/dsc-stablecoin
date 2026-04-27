@@ -13,6 +13,9 @@ contract Handler is Test {
     ERC20Mock weth;
     ERC20Mock wbtc;
     uint256 MAX_DEPOSIT_SIZE = type(uint96).max;
+    uint256 public timesMintIsCalled;
+    uint256 public timesRedeemIsCalled;
+    address[] usersWithCollateralDeposited;
 
     constructor(DSCEngine _engine, DecentralizedStableCoin _dsc) {
         dsce = _engine;
@@ -33,24 +36,52 @@ contract Handler is Test {
 
         dsce.depositCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+
+        usersWithCollateralDeposited.push(msg.sender);
     }
 
-    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
+    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral, uint256 addressSeed) public {
+        if (usersWithCollateralDeposited.length == 0) {
+            return;
+        }
+
+        uint256 addressIndex = addressSeed % usersWithCollateralDeposited.length;
+        address sender = usersWithCollateralDeposited[addressIndex];
+
         ERC20Mock collateral = _getCollateralSeed(collateralSeed);
 
-        uint256 maxCollateralToRedeem = dsce.getCollateralBalanceOfUser(address(collateral), msg.sender);
+        (uint256 totalMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(sender);
+        uint256 maxUsdValueToRedeem = collateralValueInUsd - (totalMinted * 2);
+
+        if (maxUsdValueToRedeem <= 0) {
+            return;
+        }
+
+        uint256 maxCollateralToRedeem = dsce.getTokenAmountFromUsd(address(collateral), maxUsdValueToRedeem);
+        uint256 collateralBalanceOfUser = dsce.getCollateralBalanceOfUser(address(collateral), sender);
+        maxCollateralToRedeem =
+            collateralBalanceOfUser < maxCollateralToRedeem ? collateralBalanceOfUser : maxCollateralToRedeem;
+
         amountCollateral = bound(amountCollateral, 0, maxCollateralToRedeem);
 
         if (amountCollateral == 0) {
             return;
         }
 
-        vm.prank(msg.sender);
+        vm.prank(sender);
         dsce.redeemCollateral(address(collateral), amountCollateral);
+
+        timesRedeemIsCalled++;
     }
 
-    function mintDsc(uint256 amount) public {
-        (uint256 totalMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(msg.sender);
+    function mintDsc(uint256 amount, uint256 addressSeed) public {
+        if (usersWithCollateralDeposited.length == 0) {
+            return;
+        }
+        uint256 addressIndex = addressSeed % usersWithCollateralDeposited.length;
+        address sender = usersWithCollateralDeposited[addressIndex];
+
+        (uint256 totalMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(sender);
 
         uint256 maxAmountToMint = (collateralValueInUsd / 2) - totalMinted;
         if (maxAmountToMint <= 0) {
@@ -59,8 +90,9 @@ contract Handler is Test {
 
         amount = bound(amount, 1, maxAmountToMint);
 
-        vm.prank(msg.sender);
+        vm.prank(sender);
         dsce.mintDSC(amount);
+        timesMintIsCalled++;
     }
 
     function _getCollateralSeed(uint256 collateralSeed) private view returns (ERC20Mock) {
