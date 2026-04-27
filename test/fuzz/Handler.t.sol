@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.33;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {DSCEngine} from "src/DSCEngine.sol";
 import {DecentralizedStableCoin} from "src/DecentralizedStableCoin.sol";
 import {ERC20Mock} from "test/mocks/ERC20Mock.sol";
@@ -33,6 +33,20 @@ contract Handler is Test {
 
         dsce.depositCollateral(address(collateral), amountCollateral);
         vm.stopPrank();
+    }
+
+    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral) public {
+        ERC20Mock collateral = _getCollateralSeed(collateralSeed);
+
+        uint256 maxCollateralToRedeem = dsce.getCollateralBalanceOfUser(address(collateral), msg.sender);
+        amountCollateral = bound(amountCollateral, 0, maxCollateralToRedeem);
+
+        if (amountCollateral == 0) {
+            return;
+        }
+
+        vm.prank(msg.sender);
+        dsce.redeemCollateral(address(collateral), amountCollateral);
     }
 
     function _getCollateralSeed(uint256 collateralSeed) private view returns (ERC20Mock) {
