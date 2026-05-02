@@ -320,7 +320,7 @@ contract DSCEngine is ReentrancyGuard {
         returns (uint256)
     {
         if (totalDscMinted == 0) {
-            // No DSC minted, infite health factor
+            // No DSC minted, infinite health factor
             return type(uint256).max;
         }
 
