@@ -49,7 +49,9 @@ contract Handler is Test {
         usersWithCollateralDeposited.push(msg.sender);
     }
 
-    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral, uint256 addressSeed) public {
+    function redeemCollateral(uint256 collateralSeed, uint256 amountCollateral, uint256 addressSeed)
+        public
+    {
         if (usersWithCollateralDeposited.length == 0) {
             return;
         }
@@ -66,10 +68,13 @@ contract Handler is Test {
             return;
         }
 
-        uint256 maxCollateralToRedeem = dsce.getTokenAmountFromUsd(address(collateral), maxUsdValueToRedeem);
-        uint256 collateralBalanceOfUser = dsce.getCollateralBalanceOfUser(address(collateral), sender);
-        maxCollateralToRedeem =
-            collateralBalanceOfUser < maxCollateralToRedeem ? collateralBalanceOfUser : maxCollateralToRedeem;
+        uint256 maxCollateralToRedeem =
+            dsce.getTokenAmountFromUsd(address(collateral), maxUsdValueToRedeem);
+        uint256 collateralBalanceOfUser =
+            dsce.getCollateralBalanceOfUser(address(collateral), sender);
+        maxCollateralToRedeem = collateralBalanceOfUser < maxCollateralToRedeem
+            ? collateralBalanceOfUser
+            : maxCollateralToRedeem;
 
         amountCollateral = bound(amountCollateral, 0, maxCollateralToRedeem);
 

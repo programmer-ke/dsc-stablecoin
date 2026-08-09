@@ -43,7 +43,9 @@ contract DSCEngineTest is Test {
         priceFeedAddresses.push(ethUsdPriceFeed);
         priceFeedAddresses.push(btcUsdPriceFeed);
 
-        vm.expectRevert(DSCEngine.DSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength.selector);
+        vm.expectRevert(
+            DSCEngine.DSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength.selector
+        );
         new DSCEngine(tokenAddresses, priceFeedAddresses, address(dsc));
     }
 
@@ -82,7 +84,11 @@ contract DSCEngineTest is Test {
         ERC20Mock randToken = new ERC20Mock("RAND", "RAND", USER, AMOUNT_COLLATERAL);
 
         vm.startPrank(USER);
-        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__TokenNotAllowed.selector, address(randToken)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DSCEngine.DSCEngine__TokenNotAllowed.selector, address(randToken)
+            )
+        );
         dsce.depositCollateral(address(randToken), AMOUNT_COLLATERAL);
         vm.stopPrank();
     }
@@ -133,7 +139,9 @@ contract DSCEngineTest is Test {
         uint256 liquidationPrecision = dsce.getLiquidationPrecision();
         uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
         uint256 expectedHF = (adjustedCollateral * 1e18) / (adjustedCollateral + 1e18);
-        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHF));
+        vm.expectRevert(
+            abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHF)
+        );
 
         vm.prank(USER);
         // max possible DSC mint is 10_000
@@ -170,7 +178,8 @@ contract DSCEngineTest is Test {
         // Mint DSC up to 50% of adjusted collateral (threshold = 50%)
         uint256 liquidationThreshold = dsce.getLiquidationThreshold();
         uint256 liquidationPrecision = dsce.getLiquidationPrecision();
-        uint256 adjustedCollateral = (totalCollateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 adjustedCollateral =
+            (totalCollateralValue * liquidationThreshold) / liquidationPrecision;
         // Mint exactly adjustedCollateral (health factor = 1)
         uint256 dscToMint = adjustedCollateral;
 
@@ -205,7 +214,9 @@ contract DSCEngineTest is Test {
 
         // Attempt to mint one extra wei should break health factor
         uint256 expectedHF = (adjustedCollateral * 1e18) / (adjustedCollateral + 1);
-        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHF));
+        vm.expectRevert(
+            abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHF)
+        );
         vm.prank(USER);
         dsce.mintDSC(1);
     }
@@ -365,7 +376,8 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
 
         // Record initial debt (should be zero)
-        (uint256 initialDscMinted, uint256 initialCollateralValue) = dsce.getAccountInformation(USER);
+        (uint256 initialDscMinted, uint256 initialCollateralValue) =
+            dsce.getAccountInformation(USER);
         assertEq(initialDscMinted, 0);
         assertEq(initialCollateralValue, dsce.getUsdValue(weth, collateralAmount));
 
@@ -446,17 +458,23 @@ contract DSCEngineTest is Test {
 
         // Compute expected health factor after burning
         // Get current account information
-        (uint256 currentDscMinted, uint256 currentCollateralValue) = dsce.getAccountInformation(USER);
+        (uint256 currentDscMinted, uint256 currentCollateralValue) =
+            dsce.getAccountInformation(USER);
         uint256 dscMintedAfterBurn = currentDscMinted - burnAmount;
         // Use the contract's calculateHealthFactor function
-        uint256 healthFactorAfterBurn = dsce.calculateHealthFactor(dscMintedAfterBurn, currentCollateralValue);
+        uint256 healthFactorAfterBurn =
+            dsce.calculateHealthFactor(dscMintedAfterBurn, currentCollateralValue);
 
         // Need approval
         vm.prank(USER);
         dsc.approve(address(dsce), burnAmount);
         // Should revert because health factor remains broken after burning
         // Match the exact error with computed health factor
-        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, healthFactorAfterBurn));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DSCEngine.DSCEngine__BreaksHealthFactor.selector, healthFactorAfterBurn
+            )
+        );
         vm.prank(USER);
         dsce.burnDsc(burnAmount);
     }
@@ -483,9 +501,15 @@ contract DSCEngineTest is Test {
         uint256 redeemAmount = 1; // 1 wei
         // Compute expected health factor after redeem
         uint256 newCollateralValue = dsce.getUsdValue(weth, 10 ether - redeemAmount);
-        uint256 newAdjustedCollateral = (newCollateralValue * liquidationThreshold) / liquidationPrecision;
-        uint256 expectedHealthFactor = (newAdjustedCollateral * dsce.getPrecision()) / adjustedCollateral;
-        vm.expectRevert(abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHealthFactor));
+        uint256 newAdjustedCollateral =
+            (newCollateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 expectedHealthFactor =
+            (newAdjustedCollateral * dsce.getPrecision()) / adjustedCollateral;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHealthFactor
+            )
+        );
         vm.prank(USER);
         dsce.redeemCollateral(weth, redeemAmount);
     }
@@ -512,13 +536,15 @@ contract DSCEngineTest is Test {
         uint256 totalCollateralValue = dsce.getAccountCollateralValue(USER);
         uint256 liquidationThreshold = dsce.getLiquidationThreshold();
         uint256 liquidationPrecision = dsce.getLiquidationPrecision();
-        uint256 adjustedCollateral = (totalCollateralValue * liquidationThreshold) / liquidationPrecision;
+        uint256 adjustedCollateral =
+            (totalCollateralValue * liquidationThreshold) / liquidationPrecision;
         uint256 dscToMint = adjustedCollateral / 2;
         dsce.mintDSC(dscToMint);
         vm.stopPrank();
 
         // Record initial balances and health factor
-        (uint256 initialDscMinted, uint256 initialCollateralValue) = dsce.getAccountInformation(USER);
+        (uint256 initialDscMinted, uint256 initialCollateralValue) =
+            dsce.getAccountInformation(USER);
         uint256 initialHealthFactor = dsce.getHealthFactor(USER);
         assertGt(initialHealthFactor, dsce.getMinHealthFactor());
 
@@ -553,7 +579,8 @@ contract DSCEngineTest is Test {
         dsc.approve(address(dsce), dscToMint);
 
         // Record initial state
-        (uint256 initialDscMinted, uint256 initialCollateralValue) = dsce.getAccountInformation(USER);
+        (uint256 initialDscMinted, uint256 initialCollateralValue) =
+            dsce.getAccountInformation(USER);
         uint256 initialHealthFactor = dsce.getHealthFactor(USER);
         assertGt(initialHealthFactor, dsce.getMinHealthFactor());
 
@@ -686,7 +713,8 @@ contract DSCEngineTest is Test {
         dsc.approve(address(dsce), dscToMint);
 
         // Record initial state
-        (uint256 initialDscMinted, uint256 initialCollateralValue) = dsce.getAccountInformation(USER);
+        (uint256 initialDscMinted, uint256 initialCollateralValue) =
+            dsce.getAccountInformation(USER);
         uint256 initialHealthFactor = dsce.getHealthFactor(USER);
         assertGt(initialHealthFactor, dsce.getMinHealthFactor());
 
