@@ -131,6 +131,7 @@ contract DSCEngine is ReentrancyGuard {
         mintDSC(amountDscToMint);
     }
 
+    /// @notice Burn DSC and redeem collateral in on tx
     /// @param tokenCollateralAddress: the address of the token to redeem as collateral
     /// @param amountCollateral: The amount of collateral to redeem
     /// @param amountDscToBurn: The amount of DecentralizedStableCoin to burn
@@ -152,6 +153,14 @@ contract DSCEngine is ReentrancyGuard {
     ///   liquidation bonus for taking the user's funds.
     ///   It is assumed that the protocol will be roughly 200% overcollateralized for liquidation to work.
     ///   If the protocol is only 100% collateralized for instance, no one can be liquidated.
+    ///
+    ///   Why it works:
+    ///
+    ///   Since we're removing near equal USD values of DSC supply and
+    ///   collateral (1.1x collateral for every 1x DSC amount)
+    ///   and the total collateral USD value is near twice the total DSC value
+    ///   the net effect is that the ratio of collateral USD value to DSC value
+    ///   increases
     function liquidate(address collateral, address user, uint256 debtToCover)
         external
         moreThanZero(debtToCover)
@@ -181,6 +190,10 @@ contract DSCEngine is ReentrancyGuard {
         return _healthFactor(user);
     }
 
+    /// @notice Provided information about a user's mint and deposit value
+    /// @param user The user who's information to retrieve
+    /// @return totalDscMinted Total DSC amount minted by user
+    /// @return collateralValueInUsd User's total collateral value in USD
     function getAccountInformation(address user)
         external
         view
@@ -268,6 +281,7 @@ contract DSCEngine is ReentrancyGuard {
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
+    /// @notice Deposit token collateral
     /// @param tokenCollateralAddress: The ERC20 address of the collateral being deposited
     /// @param amountCollateral: The amount of collateral being deposited
     function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
@@ -295,6 +309,9 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
+    /// @notice Get a user's collateral value in USD
+    /// @param user Address of the user
+    /// @return totalCollateralValueInUsd - the user's collateral value in USD
     function getAccountCollateralValue(address user)
         public
         view
@@ -309,12 +326,20 @@ contract DSCEngine is ReentrancyGuard {
         return totalCollateralValueInUsd;
     }
 
+    /// @notice Provides the USD value corresponding to the token amount provided
+    /// @param token The address of the token
+    /// @param amount The amount of the token in wei
+    /// @return The USD amount with a precision of 1e18
     function getUsdValue(address token, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.staleCheckLatestRoundData();
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
     }
 
+    /// @notice Provides the token amount corresponding to the USD amount
+    /// @param token Address of the token
+    /// @param usdAmountInWei The USD amount with a precision of 1e18
+    /// @return The token amount in wei corresponding the the USD value
     function getTokenAmountFromUsd(address token, uint256 usdAmountInWei)
         public
         view
@@ -357,6 +382,8 @@ contract DSCEngine is ReentrancyGuard {
                             Private Functions
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev reduces the insolvent user's collateral balance by collateral amount
+    ///  the redeemed amount sent to the redeemer from the collateral pool
     function _redeemCollateral(
         address tokenCollateralAddress,
         uint256 amountCollateral,
@@ -372,6 +399,9 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
+    /// @dev Reduces overall DSC supply
+    /// Insolvent user's balance is decreased by burn amount, which is then
+    /// transferred from redeemer to engine an burnt
     function _burnDsc(uint256 amountDscToBurn, address onBehalfOf, address dscFrom) private {
         s_DscMinted[onBehalfOf] -= amountDscToBurn;
         bool success = i_dsc.transferFrom(dscFrom, address(this), amountDscToBurn);
@@ -381,8 +411,8 @@ contract DSCEngine is ReentrancyGuard {
         i_dsc.burn(amountDscToBurn);
     }
 
-    /// @notice Returns how close to liquidation a user is
-    /// @dev If a user goes below 1e18, they can be liquidated
+    /// @dev Returns how close to liquidation a user is
+    ///   If a user goes below 1e18, they can be liquidated
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAccountInformation(user);
         return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);

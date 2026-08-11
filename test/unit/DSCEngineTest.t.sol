@@ -60,7 +60,7 @@ contract DSCEngineTest is Test {
         assertEq(expectedUsdAmount, actualUsdAmount);
     }
 
-    function testGetTokenAmountFromUsd() public {
+    function testGetTokenAmountFromUsd() public view {
         uint256 usdAmount = 100 ether;
         uint256 expectedWeth = 0.05 ether;
         uint256 actualWeth = dsce.getTokenAmountFromUsd(weth, usdAmount);
@@ -134,18 +134,20 @@ contract DSCEngineTest is Test {
         // deposit 10 ether
         // 1 ether = 2000 usd
         // 200% collateralization, means can mint max 10,000 usd
-        uint256 collateralValue = dsce.getUsdValue(weth, 10 ether);
+        uint256 collateralToDeposit = 10 ether;
+        uint256 dscToMint = 10_001 ether;
+        uint256 collateralValue = dsce.getUsdValue(weth, collateralToDeposit);
         uint256 liquidationThreshold = dsce.getLiquidationThreshold();
         uint256 liquidationPrecision = dsce.getLiquidationPrecision();
         uint256 adjustedCollateral = (collateralValue * liquidationThreshold) / liquidationPrecision;
-        uint256 expectedHF = (adjustedCollateral * 1e18) / (adjustedCollateral + 1e18);
+        uint256 expectedHF = (adjustedCollateral * 1e18) / dscToMint;
         vm.expectRevert(
             abi.encodeWithSelector(DSCEngine.DSCEngine__BreaksHealthFactor.selector, expectedHF)
         );
 
         vm.prank(USER);
         // max possible DSC mint is 10_000
-        dsce.depositCollateralAndMintDsc(weth, 10 ether, 10_001 ether);
+        dsce.depositCollateralAndMintDsc(weth, collateralToDeposit, dscToMint);
     }
 
     function testHealthFactorAfterCollateralDeposit() public depositedCollateral {
@@ -261,11 +263,12 @@ contract DSCEngineTest is Test {
 
         uint256 liquidatorStartingDSCBalance = dsc.balanceOf(liquidator);
         uint256 liquidatorStartingWethBalance = ERC20Mock(weth).balanceOf(liquidator);
-        // Liquidate enough to improve health factor
+        // Liquidate enough to improve user's health factor
+        // Current state of user:
         // With 20 ETH @ $1500: collateral = $30,000, adjusted = $15,000
         // DSC minted = $16,000 (80% of original $20,000 adjusted)
         // Health factor = 15,000 / 16,000 * 1e18 = 0.9375 * 1e18
-        // Liquidate 4,000 DSC (25% of debt)
+        // Liquidate 4,000 DSC of user's debt (25% of debt)
         uint256 debtToCover = dscToMint / 4;
         dsce.liquidate(weth, USER, debtToCover);
         vm.stopPrank();
@@ -276,7 +279,7 @@ contract DSCEngineTest is Test {
 
         // Liquidation bonus to liquidator from user is 10%
         // Liquidator deposits dsc to cover i.e. 4000
-        // User is less 4000 DSC balance
+        // User is less 4000 DSC debt (actual DSC balance unchanged)
         // User is less covered eth amount + liquidation bonus
         // Liquidator is less 4000 DSC (burnt by contract)
         // Liquidator is up covered eth amount + bonus
@@ -451,6 +454,7 @@ contract DSCEngineTest is Test {
 
         // Verify health factor is broken
         uint256 healthFactorBefore = dsce.getHealthFactor(USER);
+        console.log(healthFactorBefore);
         assertLt(healthFactorBefore, dsce.getMinHealthFactor());
 
         // Attempt to burn a small amount of DSC that does NOT bring health factor back to safe level
@@ -470,6 +474,7 @@ contract DSCEngineTest is Test {
         dsc.approve(address(dsce), burnAmount);
         // Should revert because health factor remains broken after burning
         // Match the exact error with computed health factor
+        console.log(healthFactorAfterBurn);
         vm.expectRevert(
             abi.encodeWithSelector(
                 DSCEngine.DSCEngine__BreaksHealthFactor.selector, healthFactorAfterBurn
