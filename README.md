@@ -21,6 +21,8 @@ paywalls.
   - Wrapped ETH (wETH)
   - Wrapped BTC (wBTC)
 
+Read about [how it works](how_it_works.md).
+
 ## Development
 
 ### Build
