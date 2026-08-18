@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title> Dashboard </title>
+
+    <meta charset='utf-8'>
+    <meta name="description" content="Description of page">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />
+    <meta name="theme-color" content="#ffffff">
+
+    <link rel='icon' type='image/png' href='/favicon.png'>
+    <link rel='stylesheet' href='./mvp.css'>
+    <link rel='stylesheet' href='./minstrap.css'>
+    <link rel='stylesheet' href='./global.css'>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+  </head>
+
+  <body>
+    <ms-container>
+      <header>
+        <h1>Dashboard</h1>
+        <p>Account overview and current position health</p>
+      </header>
+
+      <!-- Health Factor and Debt Summary -->
+      <ms-row class="g-3">
+        <ms-column class="span-12 md-6">
+          <dashboard-card>
+            <h2>Health Factor</h2>
+            <dashboard-number id="health-factor" data-state="unknown">--</dashboard-number>
+          </dashboard-card>
+        </ms-column>
+
+        <ms-column class="span-12 md-6">
+          <dashboard-card>
+            <h2>Total DSC Debt</h2>
+            <dashboard-number id="total-dsc-debt">--</dashboard-number>
+          </dashboard-card>
+        </ms-column>
+      </ms-row>
+
+      <!-- Wallet Token Balances -->
+      <ms-row class="g-2">
+        <ms-column class="span-12 sm-4">
+          <dashboard-card >
+            <h3>DSC Balance</h3>
+            <dashboard-number id="dsc-balance">--</dashboard-number>
+          </dashboard-card>
+        </ms-column>
+        <ms-column class="span-12 sm-4">
+          <dashboard-card >
+            <h3>WETH Balance</h3>
+            <dashboard-number id="weth-balance">--</dashboard-number>
+          </dashboard-card>
+        </ms-column>
+        <ms-column class="span-12 sm-4">
+          <dashboard-card >
+            <h3>WBTC Balance</h3>
+            <dashboard-number id="wbtc-balance">--</dashboard-number>
+          </dashboard-card>
+        </ms-column>
+      </ms-row>
+
+      <!-- Collateral Breakdown Table -->
+      <ms-row>
+        <ms-column class="span-12">
+
+          <h2>Collateral Breakdown</h2>
+	  <div class="table-responsive">
+            <table id="collateral-table">
+              <thead>
+                <tr>
+                  <th>Token</th>
+                  <th>Deposited Balance</th>
+                  <th>USD Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>WETH</td>
+                  <td id="collateral-weth-balance">--</td>
+                  <td id="collateral-weth-usd">--</td>
+                </tr>
+                <tr>
+                  <td>WBTC</td>
+                  <td id="collateral-wbtc-balance">--</td>
+                  <td id="collateral-wbtc-usd">--</td>
+                </tr>
+              </tbody>
+            </table>
+	  </div>
+
+        </ms-column>
+      </ms-row>
+
+    </ms-container>
+  </body>
+</html>
