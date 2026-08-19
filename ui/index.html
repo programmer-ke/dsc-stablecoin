@@ -177,6 +177,83 @@
         </ms-column>
       </ms-row>
 
+      <!-- Burn and Redeem Section -->
+      <header>
+        <h1>Burn and Redeem</h1>
+        <p>Repay DSC debt or withdraw collateral</p>
+      </header>
+
+      <ms-row class="g-2">
+
+        <ms-column class="span-12 sm-6">
+
+          <ms-row>
+            <!-- DSC to burn -->
+            <ms-column class="span-12">
+              <label for="burn-dsc-amount">DSC to Burn</label>
+              <input type="number" id="burn-dsc-amount" placeholder="0.0" min="0" />
+              <small>Debt: <span id="current-debt">--</span> <a href="#" id="max-burn-link">MAX</a></small>
+            </ms-column>
+          </ms-row>
+
+        </ms-column>
+
+        <ms-column class="span-12 sm-6">
+
+          <ms-row>
+            <!-- Collateral token selector -->
+            <ms-column class="span-12">
+              <label for="redeem-token">Collateral Token</label>
+              <select id="redeem-token">
+                <option value="weth">WETH</option>
+                <option value="wbtc">WBTC</option>
+              </select>
+            </ms-column>
+
+            <!-- Collateral amount to redeem -->
+            <ms-column class="span-12">
+              <label for="redeem-collateral-amount">Collateral to Redeem</label>
+              <input type="number" id="redeem-collateral-amount" placeholder="0.0" min="0" />
+              <small>Deposited: <span id="deposited-balance">--</span> <a href="#" id="max-redeem-link">MAX</a></small>
+            </ms-column>
+          </ms-row>
+
+        </ms-column>
+
+      </ms-row>
+
+      <!-- Action buttons -->
+      <ms-row id="repay-actions">
+        <ms-column class="span-12 sm-4 lg-3">
+          <button type="button" id="btn-burn-only">Burn Only</button>
+        </ms-column>
+        <ms-column class="span-12 sm-4 lg-3">
+          <button type="button" id="btn-redeem-only">Redeem Only</button>
+        </ms-column>
+        <ms-column class="span-12 sm-4 lg-3">
+          <button type="button" id="btn-burn-redeem" class="primary-action">Burn &amp; Redeem</button>
+        </ms-column>
+      </ms-row>
+
+      <!-- Health Factor Preview -->
+      <ms-row>
+        <ms-column class="span-12">
+          <dashboard-card>
+            <h3>Health Factor Preview</h3>
+            <ms-row>
+              <ms-column class="span-6">
+                <p>Current</p>
+                <dashboard-number id="redeem-preview-current-hf">--</dashboard-number>
+              </ms-column>
+              <ms-column class="span-6">
+                <p>After Action</p>
+                <dashboard-number id="redeem-preview-new-hf">--</dashboard-number>
+              </ms-column>
+            </ms-row>
+          </dashboard-card>
+        </ms-column>
+      </ms-row>
+
     </ms-container>
   </body>
 </html>

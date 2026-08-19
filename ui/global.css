@@ -51,6 +51,7 @@ header {
     text-align: left;
 }
 
-#borrow-actions button {
+#borrow-actions button,
+#repay-actions button {
     width: 100%;
 }
