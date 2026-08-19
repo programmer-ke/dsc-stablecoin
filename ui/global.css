@@ -50,3 +50,7 @@ dashboard-number {
 header {
     text-align: left;
 }
+
+#borrow-actions button {
+    width: 100%;
+}

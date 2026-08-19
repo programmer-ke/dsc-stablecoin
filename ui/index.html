@@ -98,6 +98,85 @@
         </ms-column>
       </ms-row>
 
+      <!-- Deposit & Mint Section -->
+      <header>
+        <h1>Deposit and Mint</h1>
+        <p> Deposit Collateral or Mint DSC </p>
+      </header>
+      
+      <ms-row class="g-2">
+
+	<ms-column class="span-12 sm-6">
+
+	  <ms-row>
+	    
+            <!-- Token selector (full width on mobile) -->
+            <ms-column class="span-12">
+	      <label for="collateral-token">Collateral Token</label>
+	      <select id="collateral-token">
+		<option value="weth">WETH</option>
+		<option value="wbtc">WBTC</option>
+	      </select>
+            </ms-column>
+
+            <!-- Collateral amount -->
+            <ms-column class="span-12">
+	      <label for="collateral-amount">Collateral to Deposit</label>
+	      <input type="number" id="collateral-amount" placeholder="0.0" min="0" />
+	      <small>Wallet: <span id="wallet-balance">--</span> <a href="#" id="max-link">MAX</a></small>
+            </ms-column>
+
+	  </ms-row>
+
+	</ms-column>
+
+	<ms-column class="span-12 sm-6">
+
+	  <ms-row>
+            <!-- DSC amount (full width on mobile) -->
+            <ms-column class="span-12">
+	      <label for="dsc-amount">DSC to Mint</label>
+	      <input type="number" id="dsc-amount" placeholder="0.0" min="0" />
+	      <small><a href="#" id="max-safe-link">MAX SAFE</a></small>
+            </ms-column>
+
+	  </ms-row>
+	</ms-column>
+
+      </ms-row>
+
+      <!-- Action buttons -->
+      <ms-row id="borrow-actions">
+	<ms-column class="span-12 sm-4 lg-3">
+	  <button type="button" id="btn-deposit-only">Deposit Only</button>
+	</ms-column >
+	<ms-column class="span-12 sm-4 lg-3">
+	  <button type="button" id="btn-mint-only">Mint Only</button>
+	</ms-column>
+	<ms-column class="span-12 sm-4 lg-3">
+	  <button type="button" id="btn-deposit-mint" class="primary-action">Deposit &amp; Mint</button>
+	</ms-column>
+      </ms-row>
+
+      <!-- Health Factor Preview -->
+      <ms-row>
+        <ms-column class="span-12">
+          <dashboard-card>
+            <h3>Health Factor Preview</h3>
+            <ms-row>
+              <ms-column class="span-6">
+                <p>Current</p>
+                <dashboard-number id="preview-current-hf">--</dashboard-number>
+              </ms-column>
+              <ms-column class="span-6">
+                <p>After Action</p>
+                <dashboard-number id="preview-new-hf">--</dashboard-number>
+              </ms-column>
+            </ms-row>
+          </dashboard-card>
+        </ms-column>
+      </ms-row>
+
     </ms-container>
   </body>
 </html>
