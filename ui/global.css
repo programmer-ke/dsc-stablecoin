@@ -51,7 +51,13 @@ header {
     text-align: left;
 }
 
-#borrow-actions button,
-#repay-actions button {
-    width: 100%;
+/* Stretch all buttons that are direct ms-column children */
+
+ms-column:has(> button) {
+  display: flex;
+  flex-direction: column;
+}
+
+ms-column > button {
+  flex: 1;
 }
