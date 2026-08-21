@@ -76,3 +76,8 @@ ms-column > button {
 header nav img {
     margin: 1rem 1rem;
 }
+
+
+a:visited {
+    color: var(--color-link);
+}
