@@ -131,7 +131,7 @@ contract DSCEngine is ReentrancyGuard {
         mintDSC(amountDscToMint);
     }
 
-    /// @notice Burn DSC and redeem collateral in on tx
+    /// @notice Burn DSC and redeem collateral in one tx
     /// @param tokenCollateralAddress: the address of the token to redeem as collateral
     /// @param amountCollateral: The amount of collateral to redeem
     /// @param amountDscToBurn: The amount of DecentralizedStableCoin to burn
