@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" color-mode="user">
   <head>
     <title> Dashboard </title>
 
@@ -21,9 +21,23 @@
   </head>
 
   <body>
+    
     <ms-container>
+
       <header>
-        <h1>Dashboard</h1>
+        <nav>
+          <a href="/"><img alt="Logo" src="https://picsum.photos/70/70" height="70"></a>
+	  <ul>
+	    <li><button id="connect-wallet-button"> Connect wallet </button> </li>
+	  </ul>
+        </nav>
+
+	<p> <a href="#deposit-mint-heading"> Deposit and Mint </a> |
+	  <a href="#burn-redeem-heading"> Burn and Redeem </a> |
+	  <a href="#liquidation-monitor-heading"> Liquidation Monitor </a>
+	</p>
+
+        <h1 id="overview-heading"> Dashboard </h1>
         <p>Account overview and current position health</p>
       </header>
 
@@ -100,7 +114,7 @@
 
       <!-- Deposit & Mint Section -->
       <header>
-        <h1>Deposit and Mint</h1>
+        <h1 id="deposit-mint-heading">Deposit and Mint</h1>
         <p> Deposit Collateral or Mint DSC </p>
       </header>
       
@@ -179,7 +193,7 @@
 
       <!-- Burn and Redeem Section -->
       <header>
-        <h1>Burn and Redeem</h1>
+        <h1 id="burn-redeem-heading">Burn and Redeem</h1>
         <p>Repay DSC debt or withdraw collateral</p>
       </header>
 
@@ -256,7 +270,7 @@
 
       <!-- Liquidation Monitor Section -->
       <header>
-        <h1>Liquidation Monitor</h1>
+        <h1 id="liquidation-monitor-heading">Liquidation Monitor</h1>
         <p>Find and liquidate undercollateralized positions</p>
       </header>
 

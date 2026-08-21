@@ -51,13 +51,28 @@ header {
     text-align: left;
 }
 
-/* Stretch all buttons that are direct ms-column children */
+header > nav {
+    margin-bottom: 0;
+}
 
+/* Stretch all buttons that are direct ms-column children */
 ms-column:has(> button) {
   display: flex;
   flex-direction: column;
 }
-
 ms-column > button {
   flex: 1;
+}
+
+
+/* Connect wallet button in mobile screen */
+@media (max-width: 576px) {
+    #connect-wallet-button {
+	width: 100%;
+    }
+}
+
+/* Logo image */
+header nav img {
+    margin: 1rem 1rem;
 }
