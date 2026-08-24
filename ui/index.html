@@ -10,14 +10,17 @@
     <meta name="theme-color" content="#ffffff">
 
     <link rel='icon' type='image/png' href='/favicon.png'>
-    <link rel='stylesheet' href='./mvp.css'>
-    <link rel='stylesheet' href='./minstrap.css'>
-    <link rel='stylesheet' href='./global.css'>
+    <link rel='stylesheet' href='/mvp.css'>
+    <link rel='stylesheet' href='/minstrap.css'>
+    <link rel='stylesheet' href='/global.css'>
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+
+    <script src="/ethers.umd.min.js" defer></script>
+    <script src="/global.js" defer></script>
   </head>
 
   <body>
@@ -28,7 +31,7 @@
         <nav>
           <a href="/"><img alt="Logo" src="https://picsum.photos/70/70" height="70"></a>
 	  <ul>
-	    <li><button id="connect-wallet-button"> Connect wallet </button> </li>
+	    <li><button id="connect-wallet-button" disabled> Install Wallet </button> </li>
 	  </ul>
         </nav>
 
@@ -162,13 +165,13 @@
       <!-- Action buttons -->
       <ms-row id="borrow-actions">
 	<ms-column class="span-12 sm-4 lg-3">
-	  <button type="button" id="btn-deposit-only">Deposit Only</button>
+	  <button type="button" id="btn-deposit-only" disabled>Deposit Only</button>
 	</ms-column >
 	<ms-column class="span-12 sm-4 lg-3">
-	  <button type="button" id="btn-mint-only">Mint Only</button>
+	  <button type="button" id="btn-mint-only" disabled>Mint Only</button>
 	</ms-column>
 	<ms-column class="span-12 sm-4 lg-3">
-	  <button type="button" id="btn-deposit-mint" class="primary-action">Deposit &amp; Mint</button>
+	  <button type="button" id="btn-deposit-mint" class="primary-action" disabled>Deposit &amp; Mint</button>
 	</ms-column>
       </ms-row>
 
@@ -239,13 +242,13 @@
       <!-- Action buttons -->
       <ms-row id="repay-actions">
         <ms-column class="span-12 sm-4 lg-3">
-          <button type="button" id="btn-burn-only">Burn Only</button>
+          <button type="button" id="btn-burn-only" disabled>Burn Only</button>
         </ms-column>
         <ms-column class="span-12 sm-4 lg-3">
-          <button type="button" id="btn-redeem-only">Redeem Only</button>
+          <button type="button" id="btn-redeem-only" disabled>Redeem Only</button>
         </ms-column>
         <ms-column class="span-12 sm-4 lg-3">
-          <button type="button" id="btn-burn-redeem" class="primary-action">Burn &amp; Redeem</button>
+          <button type="button" id="btn-burn-redeem" class="primary-action" disabled>Burn &amp; Redeem</button>
         </ms-column>
       </ms-row>
 
@@ -335,7 +338,7 @@
               <small>You receive 10% extra collateral value</small>
             </ms-column>
             <ms-column class="span-12">
-              <button type="button" id="btn-liquidate" class="primary-action">Liquidate</button>
+              <button type="button" id="btn-liquidate" class="primary-action" disabled>Liquidate</button>
             </ms-column>
           </ms-row>
         </ms-column>
