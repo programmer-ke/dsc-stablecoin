@@ -81,3 +81,28 @@ header nav img {
 a:visited {
     color: var(--color-link);
 }
+
+/* status message */
+status-message {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  max-width: 90%;
+  width: max-content;
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  font-weight: bold;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+status-message.error {
+  background: #ffe6e6;
+  color: #cc0000;
+  border: 1px solid #cc0000;
+}
+status-message.success {
+  background: #e6ffe6;
+  color: #006600;
+  border: 1px solid #006600;
+}

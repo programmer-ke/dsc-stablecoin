@@ -31,7 +31,8 @@
         <nav>
           <a href="/"><img alt="Logo" src="https://picsum.photos/70/70" height="70"></a>
 	  <ul>
-	    <li><button id="connect-wallet-button" disabled> Install Wallet </button> </li>
+	    <li><button id="connect-wallet-button" disabled> Install Wallet </button> </li> <br/>
+	    <small id="connected-address-label"></small>
 	  </ul>
         </nav>
 
@@ -40,8 +41,10 @@
 	  <a href="#liquidation-monitor-heading"> Liquidation Monitor </a>
 	</p>
 
+	<status-message id="global-status" hidden></status-message>
+
         <h1 id="overview-heading"> Dashboard </h1>
-        <p>Account overview and current position health</p>
+        <p>Account overview and current position health </p>
       </header>
 
       <!-- Health Factor and Debt Summary -->
