@@ -1,16 +1,5 @@
 # todo
 
-**User Story 3: Automatic reconnection**  
-As a returning user who previously connected, I want the dApp to
-recognize my already-connected account without having to click again.
-
-*Acceptance Criteria:*  
-- On page load, `eth_accounts` returns my account if already authorized.  
-- The dApp then shows my address and enables features immediately.  
-- No “Connect Wallet” button is shown (or it changes to “Connected”).
-
----
-
 **User Story 4: Handle network mismatch**  
 As a connected user on the wrong network, I want to be warned and
 prompted to switch to the supported chain so that I can use the dApp
@@ -52,6 +41,17 @@ page reload.
 
 
 # done
+
+**User Story 3: Automatic reconnection**  
+As a returning user who previously connected, I want the dApp to
+recognize my already-connected account.
+
+*Acceptance Criteria:*  
+- On page load, I click on the connect button  
+- The dApp then shows my address and enables features immediately.  
+- No “Connect Wallet” button is shown (or it changes to “Connected”).
+
+---
 
 **User Story 2: Connect already-installed wallet**  
 As a user with a wallet installed but not yet connected, I want to
