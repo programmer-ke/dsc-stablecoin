@@ -207,8 +207,8 @@ function registerWalletHandlers() {
 
 	connectedAccounts.setAccounts(accounts);
 
-	if (current[0] !== accounts[0])
-	    // first account changed, request wallet connection again
+	if (current[0] !== accounts[0] && wallet.state !== ConnectionState.INSTALLED)
+	    // first account changed and was previously connected
 	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
 }
