@@ -88,6 +88,10 @@ function detectWallet() {
 
 
 async function requestWalletConnection() {
+
+    // clear any previous application state
+    document.dispatchEvent(EVENTS.ResetAppData);
+
     if (wallet.state === ConnectionState.NOT_INSTALLED) return;
 
     const old_state = wallet.state;
@@ -127,7 +131,6 @@ async function checkSupportedChain() {
 
 function unsupportedChainDetected() {
     wallet.setState(ConnectionState.UNSUPPORTED_CHAIN);
-    document.dispatchEvent(EVENTS.ResetAppData);
     showStatus(`Switch Network to ${SUPPORTED_NETWORK_NAME}.`, "error");
 }
 
@@ -185,7 +188,28 @@ async function promptUserToConfigureNetwork() {
 
 function registerWalletHandlers() {
     window.ethereum.on('chainChanged', () => {
-	document.dispatchEvent(EVENTS.RequestWalletConnection);
+	if (wallet.state !== ConnectionState.INSTALLED)
+	    // only reset connection if was previously connected
+	    document.dispatchEvent(EVENTS.RequestWalletConnection);
+    });
+
+    window.ethereum.on('accountsChanged', (accounts) => {
+	if (accounts.length === 0) {
+	    document.dispatchEvent(EVENTS.DisconnectWallet);
+	    return;
+	}
+
+	const current = connectedAccounts.accounts;
+	if (current.length === accounts.length && current[0] == accounts[0]) {
+	    // No changes, ignore
+	    return;
+	}
+
+	connectedAccounts.setAccounts(accounts);
+
+	if (current[0] !== accounts[0] && wallet.state !== ConnectionState.INSTALLED)
+	    // first account changed and was previously connected
+	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
 }
 
