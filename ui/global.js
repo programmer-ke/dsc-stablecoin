@@ -184,7 +184,9 @@ async function promptUserToConfigureNetwork() {
 }
 
 function registerWalletHandlers() {
-    window.ethereum.on('chainChanged', checkSupportedChain);
+    window.ethereum.on('chainChanged', () => {
+	document.dispatchEvent(EVENTS.RequestWalletConnection);
+    });
 }
 
 // event mappings
