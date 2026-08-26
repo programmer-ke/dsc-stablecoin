@@ -1,5 +1,6 @@
 const EVENT_NAME_LIST = [
     "CheckWalletConnection",
+    "RegisterWalletHandlers",
     "RequestWalletConnection",
     "WalletAccountsEmpty",
     "ErrorRequestingWalletConnection",
@@ -79,6 +80,7 @@ async function switchToSupportedNetwork() {
 function detectWallet() {
     if (window.ethereum) {
 	wallet.setState(ConnectionState.INSTALLED);
+	document.dispatchEvent(EVENTS.RegisterWalletHandlers);
     }    else {
 	wallet.setState(ConnectionState.NOT_INSTALLED);
     }
@@ -181,7 +183,12 @@ async function promptUserToConfigureNetwork() {
     }
 }
 
+function registerWalletHandlers() {
+    window.ethereum.on('chainChanged', checkSupportedChain);
+}
+
 // event mappings
+on(EVENTS.RegisterWalletHandlers, registerWalletHandlers);
 on(EVENTS.CheckWalletConnection, detectWallet);
 on(EVENTS.DisconnectWallet, disconnectWallet);
 on(EVENTS.RequestWalletConnection, requestWalletConnection);

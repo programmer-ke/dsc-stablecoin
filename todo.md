@@ -27,6 +27,9 @@ page reload.
 
 # in progress
 
+
+# done
+
 ## User Story 4: Handle network mismatch**  
 As a connected user on the wrong network, I want to be warned and
 prompted to switch to the supported chain so that I can use the dApp
@@ -79,7 +82,7 @@ correctly.
 
 ---
 
-**Scenario 5: User manually switches to an unsupported network while connected**
+- [x] **Scenario 5: User manually switches to an unsupported network while connected**
 - **Given** the user is connected on the supported network
 - **When** the user manually switches their wallet to an unsupported network
 - **And** the wallet emits the `chainChanged` event
@@ -89,7 +92,7 @@ correctly.
 
 ---
 
-**Scenario 6: User manually switches back to the supported network**
+- [x] **Scenario 6: User manually switches back to the supported network**
 - **Given** the user was on an unsupported network and the warning is shown
 - **When** the user manually switches their wallet to the supported network
 - **And** the wallet emits the `chainChanged` event
@@ -98,17 +101,6 @@ correctly.
 - **And** re‑enables wallet‑dependent features
 
 ---
-
-**Scenario 7: Chain ID is returned in an unexpected format**
-- **Given** the wallet is INSTALLED and the user connects
-- **When** the wallet returns the chain ID in hexadecimal format (e.g., `0xaa36a7`)
-- **Then** the dApp parses the value correctly
-- **And** compares it against the supported chain ID without format mismatch errors
-
-
----
-
-# done
 
 ## User Story 3: Automatic reconnection**  
 As a returning user who previously connected, I want the dApp to
