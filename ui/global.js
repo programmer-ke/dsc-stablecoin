@@ -188,12 +188,28 @@ async function promptUserToConfigureNetwork() {
 
 function registerWalletHandlers() {
     window.ethereum.on('chainChanged', () => {
-	document.dispatchEvent(EVENTS.RequestWalletConnection);
+	if (wallet.state !== ConnectionState.INSTALLED)
+	    // only reset connection if was previously connected
+	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
 
     window.ethereum.on('accountsChanged', (accounts) => {
+	if (accounts.length === 0) {
+	    document.dispatchEvent(EVENTS.DisconnectWallet);
+	    return;
+	}
+
+	const current = connectedAccounts.accounts;
+	if (current.length === accounts.length && current[0] == accounts[0]) {
+	    // No changes, ignore
+	    return;
+	}
+
 	connectedAccounts.setAccounts(accounts);
-	document.dispatchEvent(EVENTS.RequestWalletConnection);
+
+	if (current[0] !== accounts[0])
+	    // first account changed, request wallet connection again
+	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
 }
 
@@ -248,7 +264,6 @@ connectedAccounts.onChange(accounts => {
 	connectedAddrLabel.textContent = `Connected as ${truncateAddr(addr)}`;
     } else {
 	connectedAddrLabel.textContent = "";
-	wallet.setState(ConnectionState.INSTALLED);
     }
 });
 
