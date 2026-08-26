@@ -1,8 +1,39 @@
+const EVENT_NAME_LIST = [
+    "CheckWalletConnection",
+    "RegisterWalletHandlers",
+    "RequestWalletConnection",
+    "WalletAccountsEmpty",
+    "ErrorRequestingWalletConnection",
+    "DisconnectWallet",
+    "CheckSupportedChain",
+    "UnsupportedChainDetected",
+    "ResetAppData",
+    "SwitchToSupportedNetwork",
+    "ErrorSwitchingNetwork",
+    "PromptManualNetworkConfig",
+];
+
+const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
+    map[name] = new CustomEvent(name);
+    return map;
+}, {});
+
+const SUPPORTED_CHAIN_ID = "0xaa36a7";
+const SUPPORTED_NETWORK_NAME = "Sepolia Testnet";
+
+const on = (eventObj, handler) => {
+    if (!eventObj) {
+        throw new Error("Event object is falsey or undefined.");
+    }
+    document.addEventListener(eventObj.type, handler);
+};
+
 const ConnectionState = Object.freeze({
     NOT_INSTALLED: "NOT_INSTALLED",
     INSTALLED: "INSTALLED",
     CONNECTION_REQUESTED: "CONNECTION_REQUESTED",
     CONNECTED: "CONNECTED",
+    UNSUPPORTED_CHAIN: "UNSUPPORTED_CHAIN"
 });
 
 const wallet = {
@@ -29,44 +60,35 @@ const connectedAccounts = {
     }
 };
 
-// commands
-const CheckWalletConnection = new CustomEvent("CheckWalletConnection");
-const RequestWalletConnection = new CustomEvent("RequestWalletConnection");
-const WalletAccountsEmpty = new CustomEvent("WalletAccountsEmpty");
-const ErrorRequestingWalletConnection = new CustomEvent("ErrorRequestingWalletConnection");
-const DisconnectWallet = new CustomEvent("DisconnectWallet");
-
 // handlers
+async function switchToSupportedNetwork() {
+    try {
+	await window.ethereum.request({
+	    method: 'wallet_switchEthereumChain',
+	    params: [{ chainId: SUPPORTED_CHAIN_ID}],
+	});
+	wallet.setState(ConnectionState.CONNECTED);
+    } catch (error) {
+	if (error.code === 4902) {
+	    document.dispatchEvent(EVENTS.PromptManualNetworkConfig);
+	} else {
+	    document.dispatchEvent(EVENTS.ErrorSwitchingNetwork);
+	}
+    }
+}
+
 function detectWallet() {
     if (window.ethereum) {
 	wallet.setState(ConnectionState.INSTALLED);
+	document.dispatchEvent(EVENTS.RegisterWalletHandlers);
     }    else {
 	wallet.setState(ConnectionState.NOT_INSTALLED);
     }
 }
 
 
-async function checkPreviousConnection() {
-  if (wallet.state !== ConnectionState.INSTALLED) return;
-
-  try {
-    const accounts = await window.ethereum.request({
-      method: "eth_accounts",
-    });
-
-    if (accounts.length > 0) {
-      connectedAccounts.setAccounts(accounts);
-      wallet.setState(ConnectionState.CONNECTED);
-    }
-  } catch (error) {
-    console.warn("eth_accounts check failed", error);
-  }
-}
-
 async function requestWalletConnection() {
-    if (wallet.state === ConnectionState.NOT_INSTALLED) {
-	return;
-    }
+    if (wallet.state === ConnectionState.NOT_INSTALLED) return;
 
     const old_state = wallet.state;
     wallet.setState(ConnectionState.CONNECTION_REQUESTED);
@@ -78,15 +100,15 @@ async function requestWalletConnection() {
 	if (accounts.length > 0) {
 	    // success
 	    connectedAccounts.setAccounts(accounts);
-	    wallet.setState(ConnectionState.CONNECTED);
+	    document.dispatchEvent(EVENTS.CheckSupportedChain);
 	} else {
-	    document.dispatchEvent(WalletAccountsEmpty);
+	    document.dispatchEvent(EVENTS.WalletAccountsEmpty);
 	    console.warn("Empty accounts list!");
 	}
 	
     } catch (error) {
 	console.error("error requesting wallet connection", error);
-	document.dispatchEvent(ErrorRequestingWalletConnection);
+	document.dispatchEvent(EVENTS.ErrorRequestingWalletConnection);
     } finally {
 	if (wallet.state == ConnectionState.CONNECTION_REQUESTED)
 	    wallet.setState(old_state);
@@ -94,13 +116,31 @@ async function requestWalletConnection() {
 }
 
 
+async function checkSupportedChain() {
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== SUPPORTED_CHAIN_ID) {
+	document.dispatchEvent(EVENTS.UnsupportedChainDetected);
+    } else {
+	wallet.setState(ConnectionState.CONNECTED);
+    }
+}
+
+function unsupportedChainDetected() {
+    wallet.setState(ConnectionState.UNSUPPORTED_CHAIN);
+    document.dispatchEvent(EVENTS.ResetAppData);
+    showStatus(`Switch Network to ${SUPPORTED_NETWORK_NAME}.`, "error");
+}
+
+
 function walletConnectionButtonClickHandler() {
     if (wallet.state === ConnectionState.NOT_INSTALLED) {
 	return;
     } else if (wallet.state === ConnectionState.INSTALLED) {
-	document.dispatchEvent(RequestWalletConnection);
+	document.dispatchEvent(EVENTS.RequestWalletConnection);
     } else if (wallet.state === ConnectionState.CONNECTED) {
-	document.dispatchEvent(DisconnectWallet);
+	document.dispatchEvent(EVENTS.DisconnectWallet);
+    } else if (wallet.state === ConnectionState.UNSUPPORTED_CHAIN) {
+	document.dispatchEvent(EVENTS.SwitchToSupportedNetwork);
     } else {
 	console.log("not implemented");
     }
@@ -109,18 +149,64 @@ function walletConnectionButtonClickHandler() {
 function disconnectWallet() {
     connectedAccounts.setAccounts([]);
     wallet.setState(ConnectionState.INSTALLED);
+    document.dispatchEvent(EVENTS.ResetAppData);
+}
+
+function notifyErrorSwitchingNetwork() {
+    showStatus(`Could not switch to ${SUPPORTED_NETWORK_NAME}. Please try again.`, "error");
+}
+
+async function promptUserToConfigureNetwork() {
+    try {
+        await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+                chainId: SUPPORTED_CHAIN_ID,
+                chainName: SUPPORTED_NETWORK_NAME,
+                rpcUrls: ['https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io'],
+                nativeCurrency: {
+                    name: 'SepoliaETH',
+                    symbol: 'ETH',
+                    decimals: 18,
+                },
+            }],
+        });
+
+	document.dispatchEvent(EVENTS.CheckSupportedChain);
+    } catch (addError) {
+        // User rejected or method unavailable – fallback to manual instructions
+        showStatus(
+            `Please add the ${SUPPORTED_NETWORK_NAME} network manually in your wallet. Chain ID: 11155111, RPC: https://rpc.sepolia.org`,
+            'error'
+        );
+    }
+}
+
+function registerWalletHandlers() {
+    window.ethereum.on('chainChanged', () => {
+	document.dispatchEvent(EVENTS.RequestWalletConnection);
+    });
 }
 
 // event mappings
-document.addEventListener("CheckWalletConnection", detectWallet);
-document.addEventListener("DisconnectWallet", disconnectWallet);
-document.addEventListener("RequestWalletConnection", requestWalletConnection);
-document.addEventListener("ErrorRequestingWalletConnection", () => {
+on(EVENTS.RegisterWalletHandlers, registerWalletHandlers);
+on(EVENTS.CheckWalletConnection, detectWallet);
+on(EVENTS.DisconnectWallet, disconnectWallet);
+on(EVENTS.RequestWalletConnection, requestWalletConnection);
+on(EVENTS.CheckSupportedChain, checkSupportedChain);
+on(EVENTS.UnsupportedChainDetected, unsupportedChainDetected);
+on(EVENTS.SwitchToSupportedNetwork, switchToSupportedNetwork);
+on(EVENTS.ErrorSwitchingNetwork, notifyErrorSwitchingNetwork);
+on(EVENTS.PromptManualNetworkConfig, promptUserToConfigureNetwork);
+on(EVENTS.ResetAppData, () => { console.log("tbd: reset all application state"); });
+on(EVENTS.ErrorRequestingWalletConnection, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
-document.addEventListener("WalletAccountsEmpty", () => {
+on(EVENTS.WalletAccountsEmpty, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
+
 
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
 walletConnectionButton.addEventListener("click", walletConnectionButtonClickHandler);
@@ -139,6 +225,9 @@ wallet.onChange(state => {
     } else if (state == ConnectionState.CONNECTED) {
 	btn.disabled = false;
 	btn.textContent = "Disconnect";
+    } else if (state == ConnectionState.UNSUPPORTED_CHAIN) {
+	btn.disabled = false;
+	btn.textContent = "Switch Network";
     }
 });
 
@@ -168,4 +257,4 @@ function showStatus(message, type = 'error') {
   setTimeout(() => { el.hidden = true; }, 5000);
 }
 
-document.dispatchEvent(CheckWalletConnection);
+document.dispatchEvent(EVENTS.CheckWalletConnection);
