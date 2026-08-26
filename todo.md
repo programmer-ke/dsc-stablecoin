@@ -1,17 +1,5 @@
 # todo
 
-**User Story 4: Handle network mismatch**  
-As a connected user on the wrong network, I want to be warned and
-prompted to switch to the supported chain so that I can use the dApp
-correctly.
-
-*Acceptance Criteria:*  
-- The dApp checks `eth_chainId` after connection.  
-- If the chain ID is not supported, I see a warning and a button to trigger `wallet_switchEthereumChain`.  
-- If I switch successfully, the dApp proceeds normally.
-
----
-
 **User Story 5: Handle locked wallet**  
 As a user with a wallet installed but locked, I want to be treated as
 not connected until I unlock it, so that I can take the appropriate
@@ -39,10 +27,90 @@ page reload.
 
 # in progress
 
+## User Story 4: Handle network mismatch**  
+As a connected user on the wrong network, I want to be warned and
+prompted to switch to the supported chain so that I can use the dApp
+correctly.
+
+*Acceptance Criteria:*  
+- The dApp checks `eth_chainId` after connection.  
+- If the chain ID is not supported, I see a warning and a button to trigger `wallet_switchEthereumChain`.  
+- If I switch successfully, the dApp proceeds normally.
+
+- [x] **Scenario 1: Connected on the supported network**
+  - **Given** the wallet is INSTALLED and a supported chain ID is
+    configured (e.g., `0xaa36a7` for Sepolia)
+  - **When** the user connects their wallet
+  - **Then** the dApp detects the chain ID matches the supported chain
+  - **And** no warning is shown
+  - **And** wallet‑dependent features are enabled
+
+---
+
+- [x] **Scenario 2: Connected on an unsupported network**
+- **Given** the wallet is INSTALLED
+- **When** the user connects their wallet on an unsupported chain (e.g., Ethereum mainnet `0x1`)
+- **Then** the dApp detects the chain ID is not supported
+- **And** a warning message is displayed (e.g., “Please switch to Sepolia”)
+- **And** wallet‑dependent features are disabled or hidden
+
+---
+
+- [x] **Scenario 3: User successfully switches to the supported network**
+- **Given** the user is connected on an unsupported network and sees the warning
+- **When** the user clicks the “Switch Network” button
+- **And** the dApp calls `wallet_switchEthereumChain` with the supported chain ID
+- **And** the user approves the switch in their wallet
+- **Then** the dApp detects the new chain ID is supported
+- **And** the warning is removed
+- **And** wallet‑dependent features are enabled
+
+---
+
+- [x] **Scenario 4: User rejects the network switch request**
+- **Given** the user is connected on an unsupported network
+- **When** the user clicks “Switch Network”
+- **And** the dApp calls `wallet_switchEthereumChain`
+- **And** the user rejects the request in their wallet
+- **Then** the dApp catches the rejection error
+- **And** remains in the warning state
+- **And** shows a message like “Please switch to the supported network to continue”
+- **And** does not crash or leave the UI in a broken state
+
+---
+
+**Scenario 5: User manually switches to an unsupported network while connected**
+- **Given** the user is connected on the supported network
+- **When** the user manually switches their wallet to an unsupported network
+- **And** the wallet emits the `chainChanged` event
+- **Then** the dApp detects the new unsupported chain ID
+- **And** shows the network mismatch warning
+- **And** disables wallet‑dependent features
+
+---
+
+**Scenario 6: User manually switches back to the supported network**
+- **Given** the user was on an unsupported network and the warning is shown
+- **When** the user manually switches their wallet to the supported network
+- **And** the wallet emits the `chainChanged` event
+- **Then** the dApp detects the new chain ID is supported
+- **And** removes the warning
+- **And** re‑enables wallet‑dependent features
+
+---
+
+**Scenario 7: Chain ID is returned in an unexpected format**
+- **Given** the wallet is INSTALLED and the user connects
+- **When** the wallet returns the chain ID in hexadecimal format (e.g., `0xaa36a7`)
+- **Then** the dApp parses the value correctly
+- **And** compares it against the supported chain ID without format mismatch errors
+
+
+---
 
 # done
 
-**User Story 3: Automatic reconnection**  
+## User Story 3: Automatic reconnection**  
 As a returning user who previously connected, I want the dApp to
 recognize my already-connected account.
 
@@ -53,7 +121,7 @@ recognize my already-connected account.
 
 ---
 
-**User Story 2: Connect already-installed wallet**  
+## User Story 2: Connect already-installed wallet**  
 As a user with a wallet installed but not yet connected, I want to
 connect by clicking a “Connect Wallet” button so that I can access
 dApp features.
