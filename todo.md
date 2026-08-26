@@ -1,18 +1,6 @@
 # todo
 
-**User Story 5: Handle locked wallet**  
-As a user with a wallet installed but locked, I want to be treated as
-not connected until I unlock it, so that I can take the appropriate
-action.
-
-*Acceptance Criteria:*  
-- If `eth_accounts` returns an empty array even though a wallet is installed, the dApp shows the “Connect Wallet” state.  
-- No error is thrown; the interface simply prompts me to
-  unlock/connect.
-
----
-
-**User Story 6: React to account changes**  
+**User Story 5: React to account changes**  
 As a connected user who switches accounts in my wallet, I want the
 dApp to update the displayed address and state without requiring a
 page reload.
