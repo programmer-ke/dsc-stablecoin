@@ -88,6 +88,10 @@ function detectWallet() {
 
 
 async function requestWalletConnection() {
+
+    // clear any previous application state
+    document.dispatchEvent(EVENTS.ResetAppData);
+
     if (wallet.state === ConnectionState.NOT_INSTALLED) return;
 
     const old_state = wallet.state;
@@ -127,7 +131,6 @@ async function checkSupportedChain() {
 
 function unsupportedChainDetected() {
     wallet.setState(ConnectionState.UNSUPPORTED_CHAIN);
-    document.dispatchEvent(EVENTS.ResetAppData);
     showStatus(`Switch Network to ${SUPPORTED_NETWORK_NAME}.`, "error");
 }
 
@@ -187,6 +190,11 @@ function registerWalletHandlers() {
     window.ethereum.on('chainChanged', () => {
 	document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
+
+    window.ethereum.on('accountsChanged', (accounts) => {
+	connectedAccounts.setAccounts(accounts);
+	document.dispatchEvent(EVENTS.RequestWalletConnection);
+    });
 }
 
 // event mappings
@@ -240,6 +248,7 @@ connectedAccounts.onChange(accounts => {
 	connectedAddrLabel.textContent = `Connected as ${truncateAddr(addr)}`;
     } else {
 	connectedAddrLabel.textContent = "";
+	wallet.setState(ConnectionState.INSTALLED);
     }
 });
 

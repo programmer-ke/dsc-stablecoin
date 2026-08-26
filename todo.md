@@ -1,6 +1,11 @@
 # todo
 
-**User Story 5: React to account changes**  
+# in progress
+
+
+# done
+
+## User Story 5: React to account changes**  
 As a connected user who switches accounts in my wallet, I want the
 dApp to update the displayed address and state without requiring a
 page reload.
@@ -10,13 +15,60 @@ page reload.
 - When I switch accounts, the dApp updates the UI with the new address and recalculates relevant data.  
 - If I disconnect all accounts, the dApp returns to the “not
   connected” state.
+  
+- [x] **Scenario 1: User switches to a different account while connected**
+  - **Given** the user is connected with account A
+  - **When** the user switches to account B in their wallet
+  - **And** the wallet emits the `accountsChanged` event with `[accountB]`
+  - **Then** the dApp updates the displayed address to account B
+  - **And** recalculates any account‑dependent data (e.g., balances, health factor)
+  - **And** the UI reflects the new account without a page reload
 
 ---
 
-# in progress
+- [x] **Scenario 2: User disconnects all accounts**
+- **Given** the user is connected with account A
+- **When** the user disconnects all accounts in their wallet
+- **And** the wallet emits the `accountsChanged` event with an empty array `[]`
+- **Then** the dApp returns to the “not connected” state
+- **And** the “Connect Wallet” button is shown again
+- **And** all account‑specific data is cleared or hidden
 
+---
 
-# done
+- [x] **Scenario 3: User switches to an account that is already the current one**
+- **Given** the user is connected with account A
+- **When** the wallet emits the `accountsChanged` event with `[accountA]` (same account)
+- **Then** the dApp does not unnecessarily re‑fetch data or reset the UI
+- **And** the displayed address remains unchanged
+
+---
+
+- [x] **Scenario 4: `accountsChanged` fires while the dApp is in an unconnected state**
+- **Given** the wallet is installed but no account is connected
+- **When** the wallet emits the `accountsChanged` event (e.g., due to a wallet‑internal change)
+- **Then** the dApp ignores the event or handles it gracefully without crashing
+- **And** the UI remains in the “not connected” state
+
+---
+
+- [x] **Scenario 5: User switches accounts while on an unsupported network**
+- **Given** the user is connected on an unsupported network with account A
+- **When** the user switches to account B in their wallet
+- **And** the wallet emits the `accountsChanged` event with `[accountB]`
+- **Then** the dApp updates the displayed address to account B
+- **And** the network mismatch warning remains visible
+- **And** wallet‑dependent features stay disabled until the network is switched
+
+---
+
+- [x] **Scenario 6: Multiple accounts returned (e.g., wallet returns more than one)**
+- **Given** the user is connected
+- **When** the wallet emits the `accountsChanged` event with `[accountA, accountB]`
+- **Then** the dApp uses the first account (`accountA`) as the active account
+- **And** updates the UI accordingly
+
+---
 
 ## User Story 4: Handle network mismatch**  
 As a connected user on the wrong network, I want to be warned and
