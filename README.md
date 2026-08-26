@@ -58,7 +58,7 @@ $ anvil
 ### Deploy
 
 ```shell
-$ forge script script/DeployDSC.s.sol:DeployDSC --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ make deploy ARGS="--network <network name>"
 ```
 
 ### Cast

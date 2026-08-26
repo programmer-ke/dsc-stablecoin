@@ -1,6 +1,160 @@
+# todo
+
+**User Story 3: Automatic reconnection**  
+As a returning user who previously connected, I want the dApp to
+recognize my already-connected account without having to click again.
+
+*Acceptance Criteria:*  
+- On page load, `eth_accounts` returns my account if already authorized.  
+- The dApp then shows my address and enables features immediately.  
+- No “Connect Wallet” button is shown (or it changes to “Connected”).
+
+---
+
+**User Story 4: Handle network mismatch**  
+As a connected user on the wrong network, I want to be warned and
+prompted to switch to the supported chain so that I can use the dApp
+correctly.
+
+*Acceptance Criteria:*  
+- The dApp checks `eth_chainId` after connection.  
+- If the chain ID is not supported, I see a warning and a button to trigger `wallet_switchEthereumChain`.  
+- If I switch successfully, the dApp proceeds normally.
+
+---
+
+**User Story 5: Handle locked wallet**  
+As a user with a wallet installed but locked, I want to be treated as
+not connected until I unlock it, so that I can take the appropriate
+action.
+
+*Acceptance Criteria:*  
+- If `eth_accounts` returns an empty array even though a wallet is installed, the dApp shows the “Connect Wallet” state.  
+- No error is thrown; the interface simply prompts me to
+  unlock/connect.
+
+---
+
+**User Story 6: React to account changes**  
+As a connected user who switches accounts in my wallet, I want the
+dApp to update the displayed address and state without requiring a
+page reload.
+
+*Acceptance Criteria:*  
+- The dApp listens for the `accountsChanged` event.  
+- When I switch accounts, the dApp updates the UI with the new address and recalculates relevant data.  
+- If I disconnect all accounts, the dApp returns to the “not
+  connected” state.
+
+---
+
 # in progress
-- fuzz tests
+
+
 # done
+
+**User Story 2: Connect already-installed wallet**  
+As a user with a wallet installed but not yet connected, I want to
+connect by clicking a “Connect Wallet” button so that I can access
+dApp features.
+
+*Acceptance Criteria:*  
+- A “Connect Wallet” button is visible when the wallet is installed but no account is connected.  
+- Clicking the button triggers `eth_requestAccounts`.  
+- On success, my address is shown and dApp features are enabled.  
+- If I reject the request, the dApp stays unconnected and shows an
+  informative message.
+
+- [x] **Scenario 1: Successful connection (happy path)**
+- **Given** wallet is installed (`INSTALLED` state), no account connected
+- **When** user clicks "Connect Wallet"
+- **Then** `eth_requestAccounts` is called  
+- User approves the MetaMask prompt  
+- The dApp receives the account address, shows it in the UI, and enables dApp features
+
+---
+
+- [x] **Scenario 2: User rejects the connection request**
+- **Given** wallet is installed, no account connected
+- **When** user clicks "Connect Wallet" and then rejects the MetaMask prompt
+- **Then** the dApp catches the rejection error  
+- Stays in the unconnected state  
+- Shows an informative message (e.g., "You need to connect to continue")
+
+---
+
+- [x] **Scenario 3: Wallet returns an empty accounts array**
+- **Given** wallet is installed, user clicks "Connect Wallet"
+- **When** `eth_requestAccounts` resolves but returns `[]` (e.g.,
+  wallet is locked or user has no accounts)
+- **Then** the dApp treats this as "not connected"  
+- Shows the "Connect Wallet" button again, possibly with a hint to
+  unlock or create an account
+
+---
+
+- [x] **Scenario 4: Unexpected error during connection**
+- **Given** wallet is installed
+- **When** `eth_requestAccounts` throws an unexpected error (e.g., provider error, network issue)
+- **Then** the dApp catches the error gracefully  
+- Shows a generic error message  
+- Does not crash or leave the UI in a broken state
+
+---
+
+- [x] **Scenario 5: Double-click prevention**
+- **Given** user clicks "Connect Wallet"
+- **When** MetaMask prompt is already open and the user clicks again
+- **Then** the dApp ignores the second click (e.g., disables the button while the request is in flight)  
+- Avoids multiple concurrent `eth_requestAccounts` calls
+
+---
+
+## **User Story 1: Detect wallet installed**  
+As a user, I want the dApp to automatically detect if I have a wallet
+installed so that I know whether I can connect.
+
+*Acceptance Criteria:*  
+- If `window.ethereum` is present, the dApp considers a wallet installed.  
+- If not present, a message is shown prompting me to install a wallet
+  (e.g., MetaMask).
+  
+- [x] **Scenario 1: Wallet is installed (success)**
+
+- **Given** the user opens the dApp and has a wallet extension (e.g.,
+  MetaMask) installed in their browser.
+- **When** the dApp loads and checks `window.ethereum`.
+- **Then** `window.ethereum` is an object (truthy), and the dApp enters the “wallet installed” state.  
+  - No wallet installation prompt is shown.  
+  - The dApp may proceed to check connection status.
+
+---
+
+- [x] **Scenario 2: Wallet is not installed (failure)**
+
+- **Given** the user opens the dApp in a browser without any wallet
+  extension.
+- **When** the dApp loads and checks `window.ethereum`.
+- **Then** `window.ethereum` is `undefined`, and the dApp displays a message like “Please install MetaMask to continue.”  
+  - Connection-related UI elements are hidden or disabled.  
+  - The user cannot interact with wallet‑dependent features.
+
+---
+
+- [x] **Scenario 3: Other injected provider (edge case)**
+
+- **Given** the user’s browser has a different injected provider (such
+  as some mobile browsers or competing wallets) that exposes
+  `window.ethereum`.
+- **When** the dApp checks `window.ethereum`.
+- **Then** the dApp treats it as “wallet installed” and proceeds with the same logic as Scenario 1.  
+  - (For the MVP, any EIP‑1193 provider is acceptable; no special
+    filtering is applied.)
+
+---
+
+
+- fuzz tests
 
 Tests:
 

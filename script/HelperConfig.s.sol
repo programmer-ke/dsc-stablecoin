@@ -34,8 +34,8 @@ contract HelperConfig is Script {
         return NetworkConfig({
             wethUsdPriceFeed: 0x694AA1769357215DE4FAC081bf1f309aDC325306,
             wbtcUsdPriceFeed: 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43,
-            weth: 0xdd13E55209Fd76AfE204dBda4007C227904f0a81,
-            wbtc: 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063,
+            weth: 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14,
+            wbtc: 0x92f3B59a79bFf5dc60c0d59eA13a44D082B2bdFC,
             deployerAddress: vm.envAddress("SEPOLIA_DEPLOYER_ADDRESS")
         });
     }
