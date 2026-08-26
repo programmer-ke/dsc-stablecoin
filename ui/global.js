@@ -1,3 +1,23 @@
+const EVENT_NAME_LIST = [
+    "CheckWalletConnection",
+    "RequestWalletConnection",
+    "WalletAccountsEmpty",
+    "ErrorRequestingWalletConnection",
+    "DisconnectWallet",
+];
+
+const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
+    map[name] = new CustomEvent(name);
+    return map;
+}, {});
+
+const on = (eventObj, handler) => {
+    if (!eventObj) {
+        throw new Error("Event object is falsey or undefined.");
+    }
+    document.addEventListener(eventObj.type, handler);
+};
+
 const ConnectionState = Object.freeze({
     NOT_INSTALLED: "NOT_INSTALLED",
     INSTALLED: "INSTALLED",
@@ -28,13 +48,6 @@ const connectedAccounts = {
 	this._listeners.push(fn);
     }
 };
-
-// commands
-const CheckWalletConnection = new CustomEvent("CheckWalletConnection");
-const RequestWalletConnection = new CustomEvent("RequestWalletConnection");
-const WalletAccountsEmpty = new CustomEvent("WalletAccountsEmpty");
-const ErrorRequestingWalletConnection = new CustomEvent("ErrorRequestingWalletConnection");
-const DisconnectWallet = new CustomEvent("DisconnectWallet");
 
 // handlers
 function detectWallet() {
@@ -80,13 +93,13 @@ async function requestWalletConnection() {
 	    connectedAccounts.setAccounts(accounts);
 	    wallet.setState(ConnectionState.CONNECTED);
 	} else {
-	    document.dispatchEvent(WalletAccountsEmpty);
+	    document.dispatchEvent(EVENTS.WalletAccountsEmpty);
 	    console.warn("Empty accounts list!");
 	}
 	
     } catch (error) {
 	console.error("error requesting wallet connection", error);
-	document.dispatchEvent(ErrorRequestingWalletConnection);
+	document.dispatchEvent(EVENTS.ErrorRequestingWalletConnection);
     } finally {
 	if (wallet.state == ConnectionState.CONNECTION_REQUESTED)
 	    wallet.setState(old_state);
@@ -98,9 +111,9 @@ function walletConnectionButtonClickHandler() {
     if (wallet.state === ConnectionState.NOT_INSTALLED) {
 	return;
     } else if (wallet.state === ConnectionState.INSTALLED) {
-	document.dispatchEvent(RequestWalletConnection);
+	document.dispatchEvent(EVENTS.RequestWalletConnection);
     } else if (wallet.state === ConnectionState.CONNECTED) {
-	document.dispatchEvent(DisconnectWallet);
+	document.dispatchEvent(EVENTS.DisconnectWallet);
     } else {
 	console.log("not implemented");
     }
@@ -112,13 +125,13 @@ function disconnectWallet() {
 }
 
 // event mappings
-document.addEventListener("CheckWalletConnection", detectWallet);
-document.addEventListener("DisconnectWallet", disconnectWallet);
-document.addEventListener("RequestWalletConnection", requestWalletConnection);
-document.addEventListener("ErrorRequestingWalletConnection", () => {
+on(EVENTS.CheckWalletConnection, detectWallet);
+on(EVENTS.DisconnectWallet, disconnectWallet);
+on(EVENTS.RequestWalletConnection, requestWalletConnection);
+on(EVENTS.ErrorRequestingWalletConnection, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
-document.addEventListener("WalletAccountsEmpty", () => {
+on(EVENTS.WalletAccountsEmpty, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
 
@@ -168,4 +181,4 @@ function showStatus(message, type = 'error') {
   setTimeout(() => { el.hidden = true; }, 5000);
 }
 
-document.dispatchEvent(CheckWalletConnection);
+document.dispatchEvent(EVENTS.CheckWalletConnection);
