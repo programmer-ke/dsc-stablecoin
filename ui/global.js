@@ -304,25 +304,28 @@ connectedAccounts.onChange(accounts => {
 
 
 userHealthFactor.onChange(value => {
-    const hfElem = document.getElementById("health-factor");
 
     let text; 
     let state;
-    let ether = BigInt(10e16);
     
     if (value == null) {
 	text = "--";
 	state = "unknown";
-    } else if (value >= ether) {
-	text = ethers.formatUnits(value);
-	state = "safe";
     } else {
 	text = ethers.formatUnits(value);
-	state = "alert";
+	if (value < 1e18)
+	    state = "alert";
+	else if (value < 1.2e18)
+	    state = "warning";
+	else
+	    state = "safe";
     }
 
-    hfElem.textContent = text;
-    hfElem.setAttribute("data-state", state);
+    document.querySelectorAll("dashboard-number.health-factor").forEach((elem, index) => {
+	elem.textContent = text;
+	elem.setAttribute("data-state", state);
+    });
+
 });
 
 

@@ -77,7 +77,7 @@ liquidation.
 
 ---
 
-- [ ] Scenario 2: User has a risky position (health factor < 1)
+- [x] Scenario 2: User has a risky position (health factor < 1)
 - **Given** the user is connected and their collateral value has
   dropped below the liquidation threshold
 - **When** the dashboard fetches the health factor
@@ -89,7 +89,7 @@ liquidation.
 
 ---
 
-### Scenario 3: User has no debt (edge case)
+- [ ] Scenario 3: User has no debt (edge case)
 - **Given** the user is connected and has deposited collateral but minted zero DSC
 - **When** the dashboard fetches the health factor
 - **Then** `DSCEngine.getHealthFactor(user)` returns a very large number or the maximum uint256 value
