@@ -1,0 +1,70 @@
+/* Contract config and interaction */
+
+const DSC_ADDRESS = "0xb927f18a9f58c7d28b592d7d5882fe62d460c81e";
+const DSC_ENGINE_ADDRESS = "0xc9b2880f16da979f4eef50624eaac28477f8b35a";
+const WBTC_ADDRESS = "0x92f3B59a79bFf5dc60c0d59eA13a44D082B2bdFC";
+const WETH_ADDRESS = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
+
+
+let _provider = null;
+let _signer = null;
+let _dscEngineRead = null;
+
+// Invalidate caches when wallet state changes
+function resetContractInteractionState() {
+  _provider = null;
+  _signer = null;
+  _dscEngineRead = null;
+}
+
+// --- Provider (read-only) ---
+function getProvider() {
+  if (!_provider) {
+    _provider = new ethers.BrowserProvider(window.ethereum);
+  }
+  return _provider;
+}
+
+// --- Signer (for writes) ---
+function getSigner() {
+  if (!_signer) {
+    const provider = getProvider();
+    _signer = provider.getSigner(); // uses currently connected account
+  }
+  return _signer;
+}
+
+// --- Read-only DSCEngine contract ---
+function getDscEngineRead() {
+  if (!_dscEngineRead) {
+    const provider = getProvider();
+    _dscEngineRead = new ethers.Contract(DSC_ENGINE_ADDRESS, DSC_ENGINE_ABI, provider);
+  }
+  return _dscEngineRead;
+}
+
+// --- Write-enabled DSCEngine contract ---
+// Always returns a fresh instance with the current signer.
+// This is cheap and guarantees the correct account is used.
+function getDscEngineWrite() {
+  return new ethers.Contract(DSC_ENGINE_ADDRESS, DSC_ENGINE_ABI, getSigner());
+}
+
+// Read health factor
+async function fetchHealthFactor(userAddress) {
+  const engine = getDscEngineRead();
+  const hf = await engine.getHealthFactor(userAddress);
+  return hf;
+}
+
+// Depositing collateral
+async function depositCollateral(tokenAddress, amount) {
+  const engine = getDscEngineWrite();
+  // First approve the engine to spend the token
+  const token = new ethers.Contract(tokenAddress, ERC20_ABI, getSigner());
+  const txApprove = await token.approve(DSC_ENGINE_ADDRESS, amount);
+  await txApprove.wait();
+  // Then deposit
+  const txDeposit = await engine.depositCollateral(tokenAddress, amount);
+  await txDeposit.wait();
+}
