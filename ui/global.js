@@ -41,6 +41,14 @@ const ConnectionState = Object.freeze({
     UNSUPPORTED_CHAIN: "UNSUPPORTED_CHAIN"
 });
 
+const BUTTON_CONFIG = {
+    [ConnectionState.NOT_INSTALLED]: { text: "Install Wallet", disabled: true },
+    [ConnectionState.DISCONNECTED]: { text: "Connect Wallet", disabled: false },
+    [ConnectionState.CONNECTION_REQUESTED]: { text: "Connect Wallet", disabled: true },
+    [ConnectionState.CONNECTED]: { text: "Disconnect", disabled: false },
+    [ConnectionState.UNSUPPORTED_CHAIN]: { text: "Switch Network", disabled: false },
+};
+
 function createObservable(initialValue) {
     const _listeners = [];
     return {
@@ -267,20 +275,10 @@ walletConnectionButton.addEventListener("click", walletConnectionButtonClickHand
 // state change listeners
 wallet.onChange(state => {
     const btn = walletConnectionButton;
-    if (state === ConnectionState.NOT_INSTALLED) {
-	btn.textContent = "Install Wallet";
-	btn.disabled = true;
-    } else if (state === ConnectionState.DISCONNECTED) {
-	btn.textContent = "Connect Wallet";
-	btn.disabled = false;
-    } else if (state == ConnectionState.CONNECTION_REQUESTED) {
-	btn.disabled = true;
-    } else if (state == ConnectionState.CONNECTED) {
-	btn.disabled = false;
-	btn.textContent = "Disconnect";
-    } else if (state == ConnectionState.UNSUPPORTED_CHAIN) {
-	btn.disabled = false;
-	btn.textContent = "Switch Network";
+    const config = BUTTON_CONFIG[state];
+    if (config) {
+        btn.textContent = config.text;
+        btn.disabled = config.disabled;
     }
 });
 
