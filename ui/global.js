@@ -242,11 +242,23 @@ function resetAppState() {
 
 async function loadAppState() {
     const user = connectedAccounts.accounts[0];
-    const healthFactor = await fetchHealthFactor(connectedAccounts.accounts[0]);
-    if (wallet.state == ConnectionState.CONNECTED && connectedAccounts.accounts[0] == user) {
-	userHealthFactor.setValue(healthFactor);	
+    try {
+	const healthFactor = await fetchHealthFactor(user);
+	if (_sameUserIsConnected(user)) {
+	    userHealthFactor.setValue(healthFactor);	
+	} else {
+	    return;
+	}
+    } catch (error) {
+	console.log("Error loading app state", error);
+	showStatus("Something went wrong while refreshing data", "error");
     }
 }
+
+function _sameUserIsConnected(user) {
+    return wallet.state == ConnectionState.CONNECTED && connectedAccounts.accounts[0] == user;
+}
+
 
 // event mappings
 on(EVENTS.RegisterWalletHandlers, registerWalletHandlers);
@@ -312,7 +324,12 @@ userHealthFactor.onChange(value => {
 	text = "--";
 	state = "unknown";
     } else {
-	text = ethers.formatUnits(value);
+	max_uint256 = BigInt(2**256) - 1n;
+	if (value === max_uint256)
+	    // 2 ** 256 implies no debt (infinite health)
+	    text = "N/A";
+	else
+	    text = ethers.formatUnits(value);
 	if (value < 1e18)
 	    state = "alert";
 	else if (value < 1.2e18)

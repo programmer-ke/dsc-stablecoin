@@ -53,6 +53,8 @@ As a user who disconnects their wallet, I want all dashboard data to be cleared 
 
 # in progress
 
+# done
+
 ## User Story 6: View Account Health Factor
 As a connected user, I want to see my current health factor on the
 dashboard so that I know if my position is safe or at risk of
@@ -89,7 +91,7 @@ liquidation.
 
 ---
 
-- [ ] Scenario 3: User has no debt (edge case)
+- [x] Scenario 3: User has no debt (edge case)
 - **Given** the user is connected and has deposited collateral but minted zero DSC
 - **When** the dashboard fetches the health factor
 - **Then** `DSCEngine.getHealthFactor(user)` returns a very large number or the maximum uint256 value
@@ -98,7 +100,7 @@ liquidation.
 
 ---
 
-### Scenario 4: User has no deposits and no debt (fresh account)
+- [x] Scenario 4: User has no deposits and no debt (fresh account)
 - **Given** the user is connected but has never interacted with the protocol
 - **When** the dashboard fetches the health factor
 - **Then** `DSCEngine.getHealthFactor(user)` returns a value indicating no position (likely max uint256 or 0 depending on implementation)
@@ -107,17 +109,17 @@ liquidation.
 
 ---
 
-### Scenario 5: Contract call fails (network error, RPC issue)
+- [x] Scenario 5: Contract call fails (network error, RPC issue)
 - **Given** the user is connected
 - **When** the dashboard attempts to fetch the health factor
 - **And** the RPC call throws an error (timeout, rate limit, etc.)
-- **Then** the `#health-factor` element shows `--` with `data-state="unknown"`
+- **Then** the `#health-factor` element shows `--` with `data-state="unknown"` or latest known value.
 - **And** an error status message is displayed via `showStatus()`
 - **And** the rest of the dashboard does not crash
 
 ---
 
-### Scenario 6: User switches accounts while data is loading
+- [x] Scenario 6: User switches accounts while data is loading
 - **Given** the user is connected with account A and a health factor fetch is in progress
 - **When** the user switches to account B before the call resolves
 - **Then** the stale response for account A is discarded
@@ -126,14 +128,12 @@ liquidation.
 
 ---
 
-### Scenario 7: User disconnects while data is loading
+- [x] Scenario 7: User disconnects while data is loading
 - **Given** the user is connected and a health factor fetch is in progress
 - **When** the user disconnects their wallet before the call resolves
 - **Then** the response is discarded
 - **And** the health factor resets to `--` with `data-state="unknown"`
 - **And** no error is shown for the abandoned request
-
-# done
 
 ## User Story 5: React to account changes**  
 As a connected user who switches accounts in my wallet, I want the

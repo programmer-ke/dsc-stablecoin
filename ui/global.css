@@ -17,6 +17,9 @@ dashboard-number {
     font-weight: bold;
     line-height: 1.2;
     margin: 0.5rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 dashboard-number.health-factor[data-state="safe"] {
@@ -34,6 +37,13 @@ dashboard-number.health-factor[data-state="alert"] {
 dashboard-number.health-factor[data-state="unknown"] {
     color: #999;
 }
+
+
+/* columns containing dashboard numbers should not grow with content*/
+ms-column:has(dashboard-number) {
+    min-width: 0;
+}
+
 
 /* Responsive table */
 .table-responsive {
