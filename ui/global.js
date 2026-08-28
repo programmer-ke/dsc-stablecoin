@@ -41,41 +41,23 @@ const ConnectionState = Object.freeze({
     UNSUPPORTED_CHAIN: "UNSUPPORTED_CHAIN"
 });
 
-const wallet = {
-    state: ConnectionState.NOT_INSTALLED,
-    _listeners: [],
-    setState(newState) {
-	this.state = newState;
-	this._listeners.forEach(fn => fn(newState));
-    },
-    onChange(fn) {
-	this._listeners.push(fn);
-    }
-};
+function createObservable(initialValue) {
+    const _listeners = [];
+    return {
+        value: initialValue,
+        set(newValue) {
+            this.value = newValue;
+            _listeners.forEach(fn => fn(newValue));
+        },
+        onChange(fn) {
+            _listeners.push(fn);
+        }
+    };
+}
 
-const connectedAccounts = {
-    accounts: [],
-    _listeners: [],
-    setAccounts(accounts) {
-	this.accounts = accounts;
-	this._listeners.forEach(fn => fn(accounts));
-    },
-    onChange(fn) {
-	this._listeners.push(fn);
-    }
-};
-
-const userHealthFactor = {
-    value: null,
-    _listeners: [],
-    setValue(value) {
-	this.value = value;
-	this._listeners.forEach(fn => fn(value));
-    },
-    onChange(fn) {
-	this._listeners.push(fn);
-    }
-};
+const wallet = createObservable(ConnectionState.NOT_INSTALLED);
+const connectedAccounts = createObservable([]);
+const userHealthFactor = createObservable(null);
 
 
 // handlers
@@ -85,7 +67,7 @@ async function switchToSupportedNetwork() {
 	    method: 'wallet_switchEthereumChain',
 	    params: [{ chainId: SUPPORTED_CHAIN_ID}],
 	});
-	wallet.setState(ConnectionState.CONNECTED);
+	wallet.set(ConnectionState.CONNECTED);
     } catch (error) {
 	if (error.code === 4902) {
 	    document.dispatchEvent(EVENTS.PromptManualNetworkConfig);
@@ -97,10 +79,10 @@ async function switchToSupportedNetwork() {
 
 function detectWallet() {
     if (window.ethereum) {
-	wallet.setState(ConnectionState.INSTALLED);
+	wallet.set(ConnectionState.INSTALLED);
 	document.dispatchEvent(EVENTS.RegisterWalletHandlers);
     }    else {
-	wallet.setState(ConnectionState.NOT_INSTALLED);
+	wallet.set(ConnectionState.NOT_INSTALLED);
     }
 }
 
@@ -110,10 +92,10 @@ async function requestWalletConnection() {
     // clear any previous application state
     document.dispatchEvent(EVENTS.ResetAppState);
 
-    if (wallet.state === ConnectionState.NOT_INSTALLED) return;
+    if (wallet.value === ConnectionState.NOT_INSTALLED) return;
 
-    const old_state = wallet.state;
-    wallet.setState(ConnectionState.CONNECTION_REQUESTED);
+    const old_state = wallet.value;
+    wallet.set(ConnectionState.CONNECTION_REQUESTED);
     try {
 	const accounts = await window.ethereum.request({
 	    method: 'eth_requestAccounts'
@@ -121,7 +103,7 @@ async function requestWalletConnection() {
 
 	if (accounts.length > 0) {
 	    // success
-	    connectedAccounts.setAccounts(accounts);
+	    connectedAccounts.set(accounts);
 	    document.dispatchEvent(EVENTS.CheckSupportedChain);
 	} else {
 	    document.dispatchEvent(EVENTS.WalletAccountsEmpty);
@@ -132,8 +114,8 @@ async function requestWalletConnection() {
 	console.error("error requesting wallet connection", error);
 	document.dispatchEvent(EVENTS.ErrorRequestingWalletConnection);
     } finally {
-	if (wallet.state == ConnectionState.CONNECTION_REQUESTED)
-	    wallet.setState(old_state);
+	if (wallet.value == ConnectionState.CONNECTION_REQUESTED)
+	    wallet.set(old_state);
     }
 }
 
@@ -143,25 +125,25 @@ async function checkSupportedChain() {
     if (chainId !== SUPPORTED_CHAIN_ID) {
 	document.dispatchEvent(EVENTS.UnsupportedChainDetected);
     } else {
-	wallet.setState(ConnectionState.CONNECTED);
+	wallet.set(ConnectionState.CONNECTED);
 	document.dispatchEvent(EVENTS.LoadAppState);
     }
 }
 
 function unsupportedChainDetected() {
-    wallet.setState(ConnectionState.UNSUPPORTED_CHAIN);
+    wallet.set(ConnectionState.UNSUPPORTED_CHAIN);
     showStatus(`Switch Network to ${SUPPORTED_NETWORK_NAME}.`, "error");
 }
 
 
 function walletConnectionButtonClickHandler() {
-    if (wallet.state === ConnectionState.NOT_INSTALLED) {
+    if (wallet.value === ConnectionState.NOT_INSTALLED) {
 	return;
-    } else if (wallet.state === ConnectionState.INSTALLED) {
+    } else if (wallet.value === ConnectionState.INSTALLED) {
 	document.dispatchEvent(EVENTS.RequestWalletConnection);
-    } else if (wallet.state === ConnectionState.CONNECTED) {
+    } else if (wallet.value === ConnectionState.CONNECTED) {
 	document.dispatchEvent(EVENTS.DisconnectWallet);
-    } else if (wallet.state === ConnectionState.UNSUPPORTED_CHAIN) {
+    } else if (wallet.value === ConnectionState.UNSUPPORTED_CHAIN) {
 	document.dispatchEvent(EVENTS.SwitchToSupportedNetwork);
     } else {
 	console.log("not implemented");
@@ -169,8 +151,8 @@ function walletConnectionButtonClickHandler() {
 }
 
 function disconnectWallet() {
-    connectedAccounts.setAccounts([]);
-    wallet.setState(ConnectionState.INSTALLED);
+    connectedAccounts.set([]);
+    wallet.set(ConnectionState.INSTALLED);
     document.dispatchEvent(EVENTS.ResetAppState);
 }
 
@@ -207,7 +189,7 @@ async function promptUserToConfigureNetwork() {
 
 function registerWalletHandlers() {
     window.ethereum.on('chainChanged', () => {
-	if (wallet.state !== ConnectionState.INSTALLED)
+	if (wallet.value !== ConnectionState.INSTALLED)
 	    // only reset connection if was previously connected
 	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
@@ -218,15 +200,15 @@ function registerWalletHandlers() {
 	    return;
 	}
 
-	const current = connectedAccounts.accounts;
+	const current = connectedAccounts.value;
 	if (current.length === accounts.length && current[0] == accounts[0]) {
 	    // No changes, ignore
 	    return;
 	}
 
-	connectedAccounts.setAccounts(accounts);
+	connectedAccounts.set(accounts);
 
-	if (current[0] !== accounts[0] && wallet.state !== ConnectionState.INSTALLED)
+	if (current[0] !== accounts[0] && wallet.value !== ConnectionState.INSTALLED)
 	    // first account changed and was previously connected
 	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
@@ -236,16 +218,16 @@ function registerWalletHandlers() {
 function resetAppState() {
     resetContractInteractionState();
 
-    userHealthFactor.setValue(null);
+    userHealthFactor.set(null);
     
 }
 
 async function loadAppState() {
-    const user = connectedAccounts.accounts[0];
+    const user = connectedAccounts.value[0];
     try {
 	const healthFactor = await fetchHealthFactor(user);
 	if (_sameUserIsConnected(user)) {
-	    userHealthFactor.setValue(healthFactor);	
+	    userHealthFactor.set(healthFactor);	
 	} else {
 	    return;
 	}
@@ -256,7 +238,7 @@ async function loadAppState() {
 }
 
 function _sameUserIsConnected(user) {
-    return wallet.state == ConnectionState.CONNECTED && connectedAccounts.accounts[0] == user;
+    return wallet.value == ConnectionState.CONNECTED && connectedAccounts.value[0] == user;
 }
 
 
