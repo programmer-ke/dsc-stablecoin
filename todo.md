@@ -1,26 +1,5 @@
 # todo
 
-## User Story: Repay Debt
-
-- [ ] **Scenario 6: User repays debt and dashboard refreshes**
- - **Given** the user has debt and the dashboard is displaying it
- - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
- - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
- - **And** if fully repaid, displays "0.00"
-
----
-
-
-## User Story 8: View Wallet Token Balances
-As a connected user, I want to see my DSC, WETH, and WBTC wallet balances on the dashboard so that I know what I have available to deposit or repay.
-
-**Acceptance Criteria:**
-- Balances are fetched via `balanceOf(user)` on DSC, WETH, and WBTC contracts
-- Values are displayed in `#dsc-balance`, `#weth-balance`, and `#wbtc-balance`
-- Balances update when the user switches accounts
-
----
-
 ## User Story 9: View Collateral Breakdown
 As a connected user, I want to see a breakdown of my deposited collateral (amounts and USD values) so that I understand the composition of my position.
 
@@ -50,10 +29,75 @@ As a user who disconnects their wallet, I want all dashboard data to be cleared 
 - The health factor state resets to `data-state="unknown"`
 - No contract calls are made after disconnect
 
+## User Story: Repay Debt
+
+- [ ] **Scenario 6: User repays debt and dashboard refreshes**
+ - **Given** the user has debt and the dashboard is displaying it
+ - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
+ - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
+ - **And** if fully repaid, displays "0.00"
+
+---
 
 # in progress
 
 # done
+
+## User Story 8: View Wallet Token Balances
+As a connected user, I want to see my DSC, WETH, and WBTC wallet
+balances on the dashboard so that I know what I have available to
+deposit or repay.
+
+**Acceptance Criteria:**
+- Balances are fetched via `balanceOf(user)` on DSC, WETH, and WBTC
+  contracts
+- Values are displayed in `#dsc-balance`, `#weth-balance`, and
+  `#wbtc-balance`
+- Balances update when the user switches accounts
+
+- [x] **Scenario 1: User has token balances (happy path)**
+ - **Given** the user is connected and holds DSC, WETH, and WBTC in their wallet
+ - **When** the dashboard fetches wallet balances
+ - **Then** `balanceOf(user)` is called on the DSC, WETH, and WBTC contracts
+ - **And** the values are displayed in `#dsc-balance`, `#weth-balance`, and `#wbtc-balance`
+
+---
+
+- [x] **Scenario 2: User has zero balances (edge case)**
+ - **Given** the user is connected but holds no DSC, WETH, or WBTC
+ - **When** the dashboard fetches wallet balances
+ - **Then** `balanceOf(user)` returns `0` for all three tokens
+ - **And** the UI displays "0.00" in `#dsc-balance`, `#weth-balance`, and `#wbtc-balance`
+
+---
+
+- [x] **Scenario 3: Contract call fails (network error, RPC issue)**
+ - **Given** the user is connected
+ - **When** the dashboard attempts to fetch wallet balances
+ - **And** one of the `balanceOf` RPC calls throws an error
+ - **Then** the corresponding balance element shows `--` or latest value
+ - **And** an error status message is displayed via `showStatus()`
+ - **And** the rest of the dashboard does not crash
+
+---
+
+- [x] **Scenario 4: User switches accounts while data is loading**
+ - **Given** the user is connected with account A and balance fetches are in progress
+ - **When** the user switches to account B before the calls resolve
+ - **Then** the stale responses for account A are discarded
+ - **And** new fetches are triggered for account B
+ - **And** the balances displayed correspond to account B
+
+---
+
+- [x] **Scenario 5: User disconnects while data is loading**
+ - **Given** the user is connected and balance fetches are in progress
+ - **When** the user disconnects their wallet before the calls resolve
+ - **Then** the responses are discarded
+ - **And** `#dsc-balance`, `#weth-balance`, and `#wbtc-balance` reset to `--`
+ - **And** no error is shown for the abandoned requests
+
+---
 
 ## User Story 7: View Total DSC Debt
 As a connected user, I want to see my total DSC debt on the dashboard

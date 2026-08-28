@@ -67,6 +67,9 @@ const wallet = createObservable(ConnectionState.NOT_INSTALLED);
 const connectedAccounts = createObservable([]);
 const userHealthFactor = createObservable(null);
 const totalDscMinted = createObservable(null);
+const dscBalance = createObservable(null);
+const wethBalance = createObservable(null);
+const wbtcBalance = createObservable(null);
 
 
 // handlers
@@ -229,23 +232,31 @@ function resetAppState() {
 
     userHealthFactor.set(null);
     totalDscMinted.set(null);
+    dscBalance.set(null);
+    wethBalance.set(null);
+    wbtcBalance.set(null);
     
 }
 
 async function loadAppState() {
     const user = connectedAccounts.value[0];
+
+    const dataloaders = [
+	{ fetch: () => fetchHealthFactor(user), target: userHealthFactor },
+	{ fetch: async () => (await fetchAccountInformation(user))[0], target: totalDscMinted },
+	{ fetch: () => getErcBalanceOf('dsc', user), target: dscBalance },
+	{ fetch: () => getErcBalanceOf('weth', user), target: wethBalance },
+	{ fetch: () => getErcBalanceOf('wbtc', user), target: wbtcBalance },
+    ];
+
     try {
-	const healthFactor = await fetchHealthFactor(user);
-	if (_sameUserIsConnected(user)) {
-	    userHealthFactor.set(healthFactor);	
-	} else {
-	    return;
-	}
-	const [dscBalance, _] = await fetchAccountInformation(user);
-	if (_sameUserIsConnected(user)) {
-	    totalDscMinted.set(dscBalance);	
-	} else {
-	    return;
+	for (const { fetch, target } of dataloaders) {
+	    const value = await fetch();
+	    if (_sameUserIsConnected(user)) {
+		target.set(value);
+	    } else {
+		return;
+	    }
 	}
     } catch (error) {
 	console.log("Error loading app state", error);
@@ -334,12 +345,30 @@ userHealthFactor.onChange(value => {
 });
 
 
-totalDscMinted.onChange(value => {
+function _updateDashboardNumber(value, elementId) {
     if (value == null)
 	text = "--";
     else
 	text = ethers.formatUnits(value);
-    document.getElementById("total-dsc-debt").textContent = text;
+    document.getElementById(elementId).textContent = text;
+}
+
+totalDscMinted.onChange(value => {
+    _updateDashboardNumber(value, "total-dsc-debt");
+});
+
+
+dscBalance.onChange(value => {
+    _updateDashboardNumber(value, "dsc-balance");
+});
+
+
+wethBalance.onChange(value => {
+    _updateDashboardNumber(value, "weth-balance");
+});
+
+wbtcBalance.onChange(value => {
+    _updateDashboardNumber(value, "wbtc-balance");
 });
 
 
