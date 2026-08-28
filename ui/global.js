@@ -1,3 +1,9 @@
+/* The main UI logic */
+
+const SUPPORTED_CHAIN_ID = "0xaa36a7";
+const SUPPORTED_NETWORK_NAME = "Sepolia Testnet";
+
+
 const EVENT_NAME_LIST = [
     "CheckWalletConnection",
     "RegisterWalletHandlers",
@@ -7,7 +13,8 @@ const EVENT_NAME_LIST = [
     "DisconnectWallet",
     "CheckSupportedChain",
     "UnsupportedChainDetected",
-    "ResetAppData",
+    "LoadAppState",
+    "ResetAppState",
     "SwitchToSupportedNetwork",
     "ErrorSwitchingNetwork",
     "PromptManualNetworkConfig",
@@ -18,8 +25,6 @@ const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
     return map;
 }, {});
 
-const SUPPORTED_CHAIN_ID = "0xaa36a7";
-const SUPPORTED_NETWORK_NAME = "Sepolia Testnet";
 
 const on = (eventObj, handler) => {
     if (!eventObj) {
@@ -60,6 +65,19 @@ const connectedAccounts = {
     }
 };
 
+const userHealthFactor = {
+    value: null,
+    _listeners: [],
+    setValue(value) {
+	this.value = value;
+	this._listeners.forEach(fn => fn(value));
+    },
+    onChange(fn) {
+	this._listeners.push(fn);
+    }
+};
+
+
 // handlers
 async function switchToSupportedNetwork() {
     try {
@@ -90,7 +108,7 @@ function detectWallet() {
 async function requestWalletConnection() {
 
     // clear any previous application state
-    document.dispatchEvent(EVENTS.ResetAppData);
+    document.dispatchEvent(EVENTS.ResetAppState);
 
     if (wallet.state === ConnectionState.NOT_INSTALLED) return;
 
@@ -126,6 +144,7 @@ async function checkSupportedChain() {
 	document.dispatchEvent(EVENTS.UnsupportedChainDetected);
     } else {
 	wallet.setState(ConnectionState.CONNECTED);
+	document.dispatchEvent(EVENTS.LoadAppState);
     }
 }
 
@@ -152,7 +171,7 @@ function walletConnectionButtonClickHandler() {
 function disconnectWallet() {
     connectedAccounts.setAccounts([]);
     wallet.setState(ConnectionState.INSTALLED);
-    document.dispatchEvent(EVENTS.ResetAppData);
+    document.dispatchEvent(EVENTS.ResetAppState);
 }
 
 function notifyErrorSwitchingNetwork() {
@@ -213,6 +232,34 @@ function registerWalletHandlers() {
     });
 }
 
+// Reset user session
+function resetAppState() {
+    resetContractInteractionState();
+
+    userHealthFactor.setValue(null);
+    
+}
+
+async function loadAppState() {
+    const user = connectedAccounts.accounts[0];
+    try {
+	const healthFactor = await fetchHealthFactor(user);
+	if (_sameUserIsConnected(user)) {
+	    userHealthFactor.setValue(healthFactor);	
+	} else {
+	    return;
+	}
+    } catch (error) {
+	console.log("Error loading app state", error);
+	showStatus("Something went wrong while refreshing data", "error");
+    }
+}
+
+function _sameUserIsConnected(user) {
+    return wallet.state == ConnectionState.CONNECTED && connectedAccounts.accounts[0] == user;
+}
+
+
 // event mappings
 on(EVENTS.RegisterWalletHandlers, registerWalletHandlers);
 on(EVENTS.CheckWalletConnection, detectWallet);
@@ -223,7 +270,8 @@ on(EVENTS.UnsupportedChainDetected, unsupportedChainDetected);
 on(EVENTS.SwitchToSupportedNetwork, switchToSupportedNetwork);
 on(EVENTS.ErrorSwitchingNetwork, notifyErrorSwitchingNetwork);
 on(EVENTS.PromptManualNetworkConfig, promptUserToConfigureNetwork);
-on(EVENTS.ResetAppData, () => { console.log("tbd: reset all application state"); });
+on(EVENTS.ResetAppState, resetAppState);
+on(EVENTS.LoadAppState, loadAppState);
 on(EVENTS.ErrorRequestingWalletConnection, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
@@ -231,11 +279,10 @@ on(EVENTS.WalletAccountsEmpty, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
 
-
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
 walletConnectionButton.addEventListener("click", walletConnectionButtonClickHandler);
 
-// state change mappings
+// state change listeners
 wallet.onChange(state => {
     const btn = walletConnectionButton;
     if (state === ConnectionState.NOT_INSTALLED) {
@@ -265,6 +312,37 @@ connectedAccounts.onChange(accounts => {
     } else {
 	connectedAddrLabel.textContent = "";
     }
+});
+
+
+userHealthFactor.onChange(value => {
+
+    let text; 
+    let state;
+    
+    if (value == null) {
+	text = "--";
+	state = "unknown";
+    } else {
+	max_uint256 = BigInt(2**256) - 1n;
+	if (value === max_uint256)
+	    // 2 ** 256 implies no debt (infinite health)
+	    text = "N/A";
+	else
+	    text = ethers.formatUnits(value);
+	if (value < 1e18)
+	    state = "alert";
+	else if (value < 1.2e18)
+	    state = "warning";
+	else
+	    state = "safe";
+    }
+
+    document.querySelectorAll("dashboard-number.health-factor").forEach((elem, index) => {
+	elem.textContent = text;
+	elem.setAttribute("data-state", state);
+    });
+
 });
 
 

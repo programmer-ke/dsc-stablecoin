@@ -1,9 +1,139 @@
 # todo
 
+## User Story 7: View Total DSC Debt
+As a connected user, I want to see my total DSC debt on the dashboard so that I understand my current borrowing position.
+
+**Acceptance Criteria:**
+- Total DSC minted is fetched from `DSCEngine.getAccountInformation(user)`
+- The value is displayed in the `#total-dsc-debt` element
+- If debt is 0, display "0.00"
+- The value updates when the user switches accounts
+
+---
+
+## User Story 8: View Wallet Token Balances
+As a connected user, I want to see my DSC, WETH, and WBTC wallet balances on the dashboard so that I know what I have available to deposit or repay.
+
+**Acceptance Criteria:**
+- Balances are fetched via `balanceOf(user)` on DSC, WETH, and WBTC contracts
+- Values are displayed in `#dsc-balance`, `#weth-balance`, and `#wbtc-balance`
+- Balances update when the user switches accounts
+
+---
+
+## User Story 9: View Collateral Breakdown
+As a connected user, I want to see a breakdown of my deposited collateral (amounts and USD values) so that I understand the composition of my position.
+
+**Acceptance Criteria:**
+- Deposited WETH and WBTC balances are fetched via `DSCEngine.getCollateralBalanceOfUser(token, user)`
+- USD values are fetched via `DSCEngine.getUsdValue(token, amount)`
+- Values are displayed in the collateral table (`#collateral-weth-balance`, `#collateral-weth-usd`, `#collateral-wbtc-balance`, `#collateral-wbtc-usd`)
+- The table updates when the user switches accounts
+
+---
+
+## User Story 10: Dashboard Refreshes on Account Switch
+As a connected user who switches accounts, I want the dashboard to automatically refresh all displayed data for the new account.
+
+**Acceptance Criteria:**
+- When `connectedAccounts` changes, all dashboard data is re-fetched
+- Placeholders are shown while data loads
+- If fetching fails, an error status is shown and previous data is cleared
+
+---
+
+## User Story 11: Dashboard Resets on Disconnect
+As a user who disconnects their wallet, I want all dashboard data to be cleared so that no stale information is shown.
+
+**Acceptance Criteria:**
+- When the wallet disconnects, all dashboard values reset to `--`
+- The health factor state resets to `data-state="unknown"`
+- No contract calls are made after disconnect
+
+
 # in progress
 
-
 # done
+
+## User Story 6: View Account Health Factor
+As a connected user, I want to see my current health factor on the
+dashboard so that I know if my position is safe or at risk of
+liquidation.
+
+**Acceptance Criteria:**
+- The health factor is fetched from `DSCEngine.getHealthFactor(user)`
+  after connection
+- The value is displayed in the `#health-factor` element
+- If health factor < 1, a visual warning state is shown (e.g.,
+  `data-state="danger"`)
+- If the user has no debt, display "∞" or "N/A"
+- The value updates when the user switches accounts
+
+- [x] Scenario 1: User has a healthy position (happy path)
+- **Given** the user is connected and has deposited collateral and
+  minted DSC
+- **When** the dashboard fetches the health factor
+- **Then** `DSCEngine.getHealthFactor(user)` returns a value ≥ 1
+- **And** the value is displayed in `#health-factor` with
+  `data-state="safe"` (or no warning state)
+
+---
+
+- [x] Scenario 2: User has a risky position (health factor < 1)
+- **Given** the user is connected and their collateral value has
+  dropped below the liquidation threshold
+- **When** the dashboard fetches the health factor
+- **Then** `DSCEngine.getHealthFactor(user)` returns a value < 1
+- **And** the value is displayed in `#health-factor` with
+  `data-state="danger"`
+- **And** a visual warning is shown (e.g., red color, pulsing, or
+  icon)
+
+---
+
+- [x] Scenario 3: User has no debt (edge case)
+- **Given** the user is connected and has deposited collateral but minted zero DSC
+- **When** the dashboard fetches the health factor
+- **Then** `DSCEngine.getHealthFactor(user)` returns a very large number or the maximum uint256 value
+- **And** the UI displays "∞" or "N/A" instead of a raw number
+- **And** `data-state` is set to something neutral like "safe" or "inactive"
+
+---
+
+- [x] Scenario 4: User has no deposits and no debt (fresh account)
+- **Given** the user is connected but has never interacted with the protocol
+- **When** the dashboard fetches the health factor
+- **Then** `DSCEngine.getHealthFactor(user)` returns a value indicating no position (likely max uint256 or 0 depending on implementation)
+- **And** the UI displays "∞" or "N/A"
+- **And** no warning state is shown
+
+---
+
+- [x] Scenario 5: Contract call fails (network error, RPC issue)
+- **Given** the user is connected
+- **When** the dashboard attempts to fetch the health factor
+- **And** the RPC call throws an error (timeout, rate limit, etc.)
+- **Then** the `#health-factor` element shows `--` with `data-state="unknown"` or latest known value.
+- **And** an error status message is displayed via `showStatus()`
+- **And** the rest of the dashboard does not crash
+
+---
+
+- [x] Scenario 6: User switches accounts while data is loading
+- **Given** the user is connected with account A and a health factor fetch is in progress
+- **When** the user switches to account B before the call resolves
+- **Then** the stale response for account A is discarded
+- **And** a new fetch is triggered for account B
+- **And** the health factor displayed corresponds to account B
+
+---
+
+- [x] Scenario 7: User disconnects while data is loading
+- **Given** the user is connected and a health factor fetch is in progress
+- **When** the user disconnects their wallet before the call resolves
+- **Then** the response is discarded
+- **And** the health factor resets to `--` with `data-state="unknown"`
+- **And** no error is shown for the abandoned request
 
 ## User Story 5: React to account changes**  
 As a connected user who switches accounts in my wallet, I want the

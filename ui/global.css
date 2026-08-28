@@ -17,23 +17,33 @@ dashboard-number {
     font-weight: bold;
     line-height: 1.2;
     margin: 0.5rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#health-factor[data-state="safe"] {
+dashboard-number.health-factor[data-state="safe"] {
     color: #2e7d32; /* green */
 }
 
-#health-factor[data-state="warning"] {
+dashboard-number.health-factor[data-state="warning"] {
     color: #f57c00; /* orange */
 }
 
-#health-factor[data-state="alert"] {
+dashboard-number.health-factor[data-state="alert"] {
     color: #c62828; /* red */
 }
 
-#health-factor[data-state="unknown"] {
+dashboard-number.health-factor[data-state="unknown"] {
     color: #999;
 }
+
+
+/* columns containing dashboard numbers should not grow with content*/
+ms-column:has(dashboard-number) {
+    min-width: 0;
+}
+
 
 /* Responsive table */
 .table-responsive {
