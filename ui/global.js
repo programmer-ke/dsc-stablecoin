@@ -35,7 +35,7 @@ const on = (eventObj, handler) => {
 
 const ConnectionState = Object.freeze({
     NOT_INSTALLED: "NOT_INSTALLED",
-    INSTALLED: "INSTALLED",
+    DISCONNECTED: "DISCONNECTED",
     CONNECTION_REQUESTED: "CONNECTION_REQUESTED",
     CONNECTED: "CONNECTED",
     UNSUPPORTED_CHAIN: "UNSUPPORTED_CHAIN"
@@ -79,7 +79,7 @@ async function switchToSupportedNetwork() {
 
 function detectWallet() {
     if (window.ethereum) {
-	wallet.set(ConnectionState.INSTALLED);
+	wallet.set(ConnectionState.DISCONNECTED);
 	document.dispatchEvent(EVENTS.RegisterWalletHandlers);
     }    else {
 	wallet.set(ConnectionState.NOT_INSTALLED);
@@ -139,7 +139,7 @@ function unsupportedChainDetected() {
 function walletConnectionButtonClickHandler() {
     if (wallet.value === ConnectionState.NOT_INSTALLED) {
 	return;
-    } else if (wallet.value === ConnectionState.INSTALLED) {
+    } else if (wallet.value === ConnectionState.DISCONNECTED) {
 	document.dispatchEvent(EVENTS.RequestWalletConnection);
     } else if (wallet.value === ConnectionState.CONNECTED) {
 	document.dispatchEvent(EVENTS.DisconnectWallet);
@@ -152,7 +152,7 @@ function walletConnectionButtonClickHandler() {
 
 function disconnectWallet() {
     connectedAccounts.set([]);
-    wallet.set(ConnectionState.INSTALLED);
+    wallet.set(ConnectionState.DISCONNECTED);
     document.dispatchEvent(EVENTS.ResetAppState);
 }
 
@@ -189,7 +189,7 @@ async function promptUserToConfigureNetwork() {
 
 function registerWalletHandlers() {
     window.ethereum.on('chainChanged', () => {
-	if (wallet.value !== ConnectionState.INSTALLED)
+	if (wallet.value !== ConnectionState.DISCONNECTED)
 	    // only reset connection if was previously connected
 	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
@@ -208,7 +208,7 @@ function registerWalletHandlers() {
 
 	connectedAccounts.set(accounts);
 
-	if (current[0] !== accounts[0] && wallet.value !== ConnectionState.INSTALLED)
+	if (current[0] !== accounts[0] && wallet.value !== ConnectionState.DISCONNECTED)
 	    // first account changed and was previously connected
 	    document.dispatchEvent(EVENTS.RequestWalletConnection);
     });
@@ -270,7 +270,7 @@ wallet.onChange(state => {
     if (state === ConnectionState.NOT_INSTALLED) {
 	btn.textContent = "Install Wallet";
 	btn.disabled = true;
-    } else if (state === ConnectionState.INSTALLED) {
+    } else if (state === ConnectionState.DISCONNECTED) {
 	btn.textContent = "Connect Wallet";
 	btn.disabled = false;
     } else if (state == ConnectionState.CONNECTION_REQUESTED) {
