@@ -66,6 +66,7 @@ function createObservable(initialValue) {
 const wallet = createObservable(ConnectionState.NOT_INSTALLED);
 const connectedAccounts = createObservable([]);
 const userHealthFactor = createObservable(null);
+const totalDscMinted = createObservable(null);
 
 
 // handlers
@@ -227,6 +228,7 @@ function resetAppState() {
     resetContractInteractionState();
 
     userHealthFactor.set(null);
+    totalDscMinted.set(null);
     
 }
 
@@ -236,6 +238,12 @@ async function loadAppState() {
 	const healthFactor = await fetchHealthFactor(user);
 	if (_sameUserIsConnected(user)) {
 	    userHealthFactor.set(healthFactor);	
+	} else {
+	    return;
+	}
+	const [dscBalance, _] = await fetchAccountInformation(user);
+	if (_sameUserIsConnected(user)) {
+	    totalDscMinted.set(dscBalance);	
 	} else {
 	    return;
 	}
@@ -323,6 +331,15 @@ userHealthFactor.onChange(value => {
 	elem.setAttribute("data-state", state);
     });
 
+});
+
+
+totalDscMinted.onChange(value => {
+    if (value == null)
+	text = "--";
+    else
+	text = ethers.formatUnits(value);
+    document.getElementById("total-dsc-debt").textContent = text;
 });
 
 

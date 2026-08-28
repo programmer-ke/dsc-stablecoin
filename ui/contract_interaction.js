@@ -57,6 +57,12 @@ async function fetchHealthFactor(userAddress) {
   return hf;
 }
 
+// Get account information
+async function fetchAccountInformation(userAddress) {
+    const engine = getDscEngineRead();
+    return await engine.getAccountInformation(userAddress);
+}
+
 // Depositing collateral
 async function depositCollateral(tokenAddress, amount) {
   const engine = getDscEngineWrite();

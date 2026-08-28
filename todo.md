@@ -1,5 +1,15 @@
 # todo
 
+## User Story: Repay Debt
+
+- [ ] **Scenario 6: User repays debt and dashboard refreshes**
+ - **Given** the user has debt and the dashboard is displaying it
+ - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
+ - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
+ - **And** if fully repaid, displays "0.00"
+
+---
+
 
 ## User Story 8: View Wallet Token Balances
 As a connected user, I want to see my DSC, WETH, and WBTC wallet balances on the dashboard so that I know what I have available to deposit or repay.
@@ -43,6 +53,8 @@ As a user who disconnects their wallet, I want all dashboard data to be cleared 
 
 # in progress
 
+# done
+
 ## User Story 7: View Total DSC Debt
 As a connected user, I want to see my total DSC debt on the dashboard
 so that I understand my current borrowing position.
@@ -54,7 +66,7 @@ so that I understand my current borrowing position.
 - If debt is 0, display "0.00"
 - The value updates when the user switches accounts
 
-- [ ] **Scenario 1: User has an active debt position (happy path)**
+- [x] **Scenario 1: User has an active debt position (happy path)**
   - **Given** the user is connected and has minted DSC
   - **When** the dashboard fetches account information
   - **Then** `DSCEngine.getAccountInformation(user)` returns
@@ -63,51 +75,42 @@ so that I understand my current borrowing position.
 
 ---
 
-**Scenario 2: User has zero debt (edge case)**
-- **Given** the user is connected but has never minted DSC, or has fully repaid
-- **When** the dashboard fetches account information
-- **Then** `DSCEngine.getAccountInformation(user)` returns `totalDscMinted = 0`
-- **And** the UI displays "0.00" in `#total-dsc-debt`
+-- [x] **Scenario 2: User has zero debt (edge case)**
+  - **Given** the user is connected but has never minted DSC, or has fully repaid
+  - **When** the dashboard fetches account information
+  - **Then** `DSCEngine.getAccountInformation(user)` returns `totalDscMinted = 0`
+  - **And** the UI displays "0.00" in `#total-dsc-debt`
 
 ---
 
-**Scenario 3: Contract call fails (network error, RPC issue)**
-- **Given** the user is connected
-- **When** the dashboard attempts to fetch account information
-- **And** the RPC call throws an error
-- **Then** `#total-dsc-debt` shows `--`
-- **And** an error status message is displayed via `showStatus()`
-- **And** the rest of the dashboard does not crash
+- [x] **Scenario 3: Contract call fails (network error, RPC issue)**
+  - **Given** the user is connected
+  - **When** the dashboard attempts to fetch account information
+  - **And** the RPC call throws an error
+  - **Then** `#total-dsc-debt` shows `--` or latest known value
+  - **And** an error status message is displayed via `showStatus()`
+  - **And** the rest of the dashboard does not crash
 
 ---
 
-**Scenario 4: User switches accounts while data is loading**
-- **Given** the user is connected with account A and a `getAccountInformation` fetch is in progress
-- **When** the user switches to account B before the call resolves
-- **Then** the stale response for account A is discarded
-- **And** a new fetch is triggered for account B
-- **And** the debt displayed corresponds to account B
+- [x] **Scenario 4: User switches accounts while data is loading**
+ - **Given** the user is connected with account A and a
+   `getAccountInformation` fetch is in progress
+ - **When** the user switches to account B before the call resolves
+ - **Then** the stale response for account A is discarded
+ - **And** a new fetch is triggered for account B
+ - **And** the debt displayed corresponds to account B
 
 ---
 
-**Scenario 5: User disconnects while data is loading**
-- **Given** the user is connected and a `getAccountInformation` fetch is in progress
-- **When** the user disconnects their wallet before the call resolves
-- **Then** the response is discarded
-- **And** `#total-dsc-debt` resets to `--`
-- **And** no error is shown for the abandoned request
+- [x] **Scenario 5: User disconnects while data is loading**
+ - **Given** the user is connected and a `getAccountInformation` fetch is in progress
+ - **When** the user disconnects their wallet before the call resolves
+ - **Then** the response is discarded
+ - **And** `#total-dsc-debt` resets to `--`
+ - **And** no error is shown for the abandoned request
 
 ---
-
-**Scenario 6: User repays debt and dashboard refreshes**
-- **Given** the user has debt and the dashboard is displaying it
-- **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
-- **Then** the new, lower debt value is displayed in `#total-dsc-debt`
-- **And** if fully repaid, displays "0.00"
-
----
-
-# done
 
 ## User Story 6: View Account Health Factor
 As a connected user, I want to see my current health factor on the
