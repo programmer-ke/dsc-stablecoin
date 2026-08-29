@@ -1,16 +1,5 @@
 # todo
 
-## User Story 9: View Collateral Breakdown
-As a connected user, I want to see a breakdown of my deposited collateral (amounts and USD values) so that I understand the composition of my position.
-
-**Acceptance Criteria:**
-- Deposited WETH and WBTC balances are fetched via `DSCEngine.getCollateralBalanceOfUser(token, user)`
-- USD values are fetched via `DSCEngine.getUsdValue(token, amount)`
-- Values are displayed in the collateral table (`#collateral-weth-balance`, `#collateral-weth-usd`, `#collateral-wbtc-balance`, `#collateral-wbtc-usd`)
-- The table updates when the user switches accounts
-
----
-
 ## User Story 10: Dashboard Refreshes on Account Switch
 As a connected user who switches accounts, I want the dashboard to automatically refresh all displayed data for the new account.
 
@@ -42,6 +31,85 @@ As a user who disconnects their wallet, I want all dashboard data to be cleared 
 # in progress
 
 # done
+
+## User Story 9: View Collateral Breakdown
+As a connected user, I want to see a breakdown of my deposited
+collateral (amounts and USD values) so that I understand the
+composition of my position.
+
+**Acceptance Criteria:**
+- Deposited WETH and WBTC balances are fetched via
+  `DSCEngine.getCollateralBalanceOfUser(token, user)`
+- USD values are fetched via `DSCEngine.getUsdValue(token, amount)`
+- Values are displayed in the collateral table
+  (`#collateral-weth-balance`, `#collateral-weth-usd`,
+  `#collateral-wbtc-balance`, `#collateral-wbtc-usd`)
+- The table updates when the user switches accounts
+
+---
+
+- [x] **Scenario 1: User has deposited both WETH and WBTC (happy
+      path)**
+  - **Given** the user is connected and has deposited WETH and WBTC
+  - **When** the dashboard fetches collateral data
+  - **Then** `getCollateralBalanceOfUser(token, user)` returns the
+    deposited amounts for both tokens
+  - **And** `getUsdValue(token, amount)` returns the USD values
+  - **And** the values are displayed in `#collateral-weth-balance`,
+    `#collateral-weth-usd`, `#collateral-wbtc-balance`,
+    `#collateral-wbtc-usd`
+
+---
+
+- [x] **Scenario 2: User has deposited only one collateral type**
+  - **Given** the user has deposited WETH but no WBTC
+  - **When** the dashboard fetches collateral data
+  - **Then** WETH row shows the balance and USD value
+  - **And** WBTC row shows "0.00" for both balance and USD value
+
+---
+
+- [x] **Scenario 3: User has no deposits at all**
+  - **Given** the user is connected but has never deposited any collateral
+  - **When** the dashboard fetches collateral data
+  - **Then** both WETH and WBTC rows display "0.00" for balance and USD value
+
+---
+
+- [x] **Scenario 4: Contract call fails (network error, RPC issue)**
+    - **Given** the user is connected
+    - **When** the dashboard attempts to fetch collateral balances
+    - **And** one of the RPC calls throws an error
+    - **Then** the corresponding table cells show `--`
+    - **And** an error status message is displayed via `showStatus()`
+    - **And** the rest of the dashboard does not crash
+
+---
+
+- [x] **Scenario 5: User switches accounts while data is loading**
+    - **Given** the user is connected with account A and collateral fetches are in progress
+    - **When** the user switches to account B before the calls resolve
+    - **Then** the stale responses for account A are discarded
+    - **And** new fetches are triggered for account B
+    - **And** the collateral table reflects account B's deposits
+
+---
+
+- [x] **Scenario 6: User disconnects while data is loading**
+    - **Given** the user is connected and collateral fetches are in progress
+    - **When** the user disconnects their wallet before the calls resolve
+    - **Then** the responses are discarded
+    - **And** the collateral table cells reset to `--`
+    - **And** no error is shown for the abandoned requests
+
+---
+
+- [x] **Scenario 7: Price feed returns stale data**
+    - **Given** the user is connected and has collateral deposits
+    - **When** the dashboard calls `getUsdValue(token, amount)`
+    - **And** the underlying price feed's `staleCheckLatestRoundData` reverts with `OracleLib__StalePrice()`
+    - **Then** the USD value cells show `--`
+    - **And** an error status is displayed
 
 ## User Story 8: View Wallet Token Balances
 As a connected user, I want to see my DSC, WETH, and WBTC wallet
