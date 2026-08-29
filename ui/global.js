@@ -345,11 +345,11 @@ userHealthFactor.onChange(value => {
 });
 
 
-function _updateDashboardNumber(value, elementId) {
+function _updateDashboardNumber(value, elementId, decimals = 18) {
     if (value == null)
 	text = "--";
     else
-	text = ethers.formatUnits(value);
+	text = ethers.formatUnits(value, decimals);
     document.getElementById(elementId).textContent = text;
 }
 
@@ -368,7 +368,7 @@ wethBalance.onChange(value => {
 });
 
 wbtcBalance.onChange(value => {
-    _updateDashboardNumber(value, "wbtc-balance");
+    _updateDashboardNumber(value, "wbtc-balance", 8);
 });
 
 
