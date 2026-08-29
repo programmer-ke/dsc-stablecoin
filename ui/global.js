@@ -70,6 +70,10 @@ const totalDscMinted = createObservable(null);
 const dscBalance = createObservable(null);
 const wethBalance = createObservable(null);
 const wbtcBalance = createObservable(null);
+const collateralWethBalance = createObservable(null);
+const collateralWethUsd = createObservable(null);
+const collateralWbtcBalance = createObservable(null);
+const collateralWbtcUsd = createObservable(null);
 
 
 // handlers
@@ -235,7 +239,10 @@ function resetAppState() {
     dscBalance.set(null);
     wethBalance.set(null);
     wbtcBalance.set(null);
-    
+    collateralWethBalance.set(null);
+    collateralWethUsd.set(null);
+    collateralWbtcBalance.set(null);
+    collateralWbtcUsd.set(null);
 }
 
 async function loadAppState() {
@@ -247,6 +254,32 @@ async function loadAppState() {
 	{ fetch: () => getErcBalanceOf('dsc', user), target: dscBalance },
 	{ fetch: () => getErcBalanceOf('weth', user), target: wethBalance },
 	{ fetch: () => getErcBalanceOf('wbtc', user), target: wbtcBalance },
+        {
+            fetch: async () => {
+                const balance = await fetchCollateralBalance(WETH_ADDRESS, user);
+                const usd = balance > 0n ? await fetchUsdValue(WETH_ADDRESS, balance) : 0n;
+                return { balance, usd };
+            },
+            target: {
+                set: ({ balance, usd }) => {
+                    collateralWethBalance.set(balance);
+                    collateralWethUsd.set(usd);
+                }
+            }
+        },
+        {
+            fetch: async () => {
+                const balance = await fetchCollateralBalance(WBTC_ADDRESS, user);
+                const usd = balance > 0n ? await fetchUsdValue(WBTC_ADDRESS, balance) : 0n;
+                return { balance, usd };
+            },
+            target: {
+                set: ({ balance, usd }) => {
+                    collateralWbtcBalance.set(balance);
+                    collateralWbtcUsd.set(usd);
+                }
+            }
+        }
     ];
 
     try {
@@ -346,6 +379,7 @@ userHealthFactor.onChange(value => {
 
 
 function _updateDashboardNumber(value, elementId, decimals = 18) {
+    let text;
     if (value == null)
 	text = "--";
     else
@@ -369,6 +403,22 @@ wethBalance.onChange(value => {
 
 wbtcBalance.onChange(value => {
     _updateDashboardNumber(value, "wbtc-balance", 8);
+});
+
+collateralWethBalance.onChange(value => {
+    _updateDashboardNumber(value, "collateral-weth-balance");
+});
+
+collateralWethUsd.onChange(value => {
+    _updateDashboardNumber(value, "collateral-weth-usd");
+});
+
+collateralWbtcBalance.onChange(value => {
+    _updateDashboardNumber(value, "collateral-wbtc-balance", 8);
+});
+
+collateralWbtcUsd.onChange(value => {
+    _updateDashboardNumber(value, "collateral-wbtc-usd");
 });
 
 

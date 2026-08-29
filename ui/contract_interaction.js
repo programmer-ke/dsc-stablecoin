@@ -88,6 +88,17 @@ async function getErcBalanceOf(name, address) {
     return await erc.balanceOf(address);
 }
 
+// Get collateral balance deposited in DSCEngine
+async function fetchCollateralBalance(tokenAddress, userAddress) {
+  const engine = getDscEngineRead();
+  return await engine.getCollateralBalanceOfUser(tokenAddress, userAddress);
+}
+
+// Get USD value of a given amount of a collateral token
+async function fetchUsdValue(tokenAddress, amount) {
+  const engine = getDscEngineRead();
+  return await engine.getUsdValue(tokenAddress, amount);
+}
 
 // Depositing collateral
 async function depositCollateral(tokenAddress, amount) {
