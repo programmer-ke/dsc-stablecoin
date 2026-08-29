@@ -1,23 +1,5 @@
 # todo
 
-## User Story 10: Dashboard Refreshes on Account Switch
-As a connected user who switches accounts, I want the dashboard to automatically refresh all displayed data for the new account.
-
-**Acceptance Criteria:**
-- When `connectedAccounts` changes, all dashboard data is re-fetched
-- Placeholders are shown while data loads
-- If fetching fails, an error status is shown and previous data is cleared
-
----
-
-## User Story 11: Dashboard Resets on Disconnect
-As a user who disconnects their wallet, I want all dashboard data to be cleared so that no stale information is shown.
-
-**Acceptance Criteria:**
-- When the wallet disconnects, all dashboard values reset to `--`
-- The health factor state resets to `data-state="unknown"`
-- No contract calls are made after disconnect
-
 ## User Story: Repay Debt
 
 - [ ] **Scenario 6: User repays debt and dashboard refreshes**
@@ -31,6 +13,29 @@ As a user who disconnects their wallet, I want all dashboard data to be cleared 
 # in progress
 
 # done
+
+## User Story 11: Dashboard Resets on Disconnect
+As a user who disconnects their wallet, I want all dashboard data to
+be cleared so that no stale information is shown.
+
+**Acceptance Criteria:**
+- When the wallet disconnects, all dashboard values reset to `--`
+- The health factor state resets to `data-state="unknown"`
+- No contract calls are made after disconnect
+
+---
+
+## User Story 10: Dashboard Refreshes on Account Switch
+As a connected user who switches accounts, I want the dashboard to
+automatically refresh all displayed data for the new account.
+
+**Acceptance Criteria:**
+- When `connectedAccounts` changes, all dashboard data is re-fetched
+- Placeholders are shown while data loads
+- If fetching fails, an error status is shown and previous data is
+  cleared
+
+---
 
 ## User Story 9: View Collateral Breakdown
 As a connected user, I want to see a breakdown of my deposited
