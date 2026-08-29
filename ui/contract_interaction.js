@@ -5,16 +5,24 @@ const DSC_ENGINE_ADDRESS = "0xc9b2880f16da979f4eef50624eaac28477f8b35a";
 const WBTC_ADDRESS = "0x92f3B59a79bFf5dc60c0d59eA13a44D082B2bdFC";
 const WETH_ADDRESS = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
 
+const ERC20_CONFIG = {
+    dsc: { address: DSC_ADDRESS, abi: DSC_ABI },
+    weth: { address: WETH_ADDRESS, abi: SEPOLIA_WETH_ABI },
+    wbtc: { address: WBTC_ADDRESS, abi: SEPOLIA_WBTC_ABI },
+};
 
 let _provider = null;
 let _signer = null;
 let _dscEngineRead = null;
+let _ercRead = {};
+
 
 // Invalidate caches when wallet state changes
 function resetContractInteractionState() {
-  _provider = null;
-  _signer = null;
-  _dscEngineRead = null;
+    _provider = null;
+    _signer = null;
+    _dscEngineRead = null;
+    _ercRead = {};
 }
 
 // --- Provider (read-only) ---
@@ -43,6 +51,16 @@ function getDscEngineRead() {
   return _dscEngineRead;
 }
 
+// --- Read-only DSC ---
+function getErcRead(name) {
+    if (!(name in _ercRead)) {
+	const provider = getProvider();
+	const {address, abi} = ERC20_CONFIG[name];
+	_ercRead[name] = new ethers.Contract(address, abi, provider);
+    }
+    return _ercRead[name];
+}
+
 // --- Write-enabled DSCEngine contract ---
 // Always returns a fresh instance with the current signer.
 // This is cheap and guarantees the correct account is used.
@@ -56,6 +74,20 @@ async function fetchHealthFactor(userAddress) {
   const hf = await engine.getHealthFactor(userAddress);
   return hf;
 }
+
+// Get account information
+async function fetchAccountInformation(userAddress) {
+    const engine = getDscEngineRead();
+    return await engine.getAccountInformation(userAddress);
+}
+
+
+// Get ERC balance
+async function getErcBalanceOf(name, address) {
+    const erc = getErcRead(name);
+    return await erc.balanceOf(address);
+}
+
 
 // Depositing collateral
 async function depositCollateral(tokenAddress, amount) {
