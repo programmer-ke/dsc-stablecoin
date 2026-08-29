@@ -1,5 +1,134 @@
 # todo
 
+## User Story: Deposit Collateral (Happy Path)
+As a connected user with WETH or WBTC, I want to deposit collateral into the DSCEngine so that I can improve my health factor or mint DSC later.
+
+**Acceptance Criteria:**
+- The user selects a token (WETH/WBTC) and enters an amount > 0
+- The dApp validates the amount does not exceed the wallet balance
+- Clicking "Deposit Only" triggers `approve` then `depositCollateral`
+- After both transactions confirm, the dashboard refreshes:
+  - Wallet balance decreases
+  - Collateral breakdown table updates with new deposited balance and USD value
+  - Health factor and debt may update accordingly
+
+**Scenarios:**
+- **Scenario 1: Successful deposit of WETH**
+  - Given the user has 2 WETH and no existing deposits
+  - When they deposit 1 WETH
+  - Then the wallet balance shows 1 WETH, collateral table shows 1 WETH deposited, and USD value is displayed
+- **Scenario 2: Successful deposit of WBTC**
+  - Given the user has 0.5 WBTC
+  - When they deposit 0.1 WBTC
+  - Then the wallet balance decreases by 0.1 WBTC, collateral table shows 0.1 WBTC deposited
+- **Scenario 3: Deposit when already having collateral**
+  - Given the user has 1 WETH deposited and 2 WETH in wallet
+  - When they deposit another 0.5 WETH
+  - Then the deposited balance becomes 1.5 WETH, wallet balance becomes 1.5 WETH
+
+---
+
+## User Story: Prevent Deposit with Insufficient Balance
+As a user, I want the dApp to prevent me from attempting a deposit that exceeds my wallet balance, so I don't waste gas on a failing transaction.
+
+**Acceptance Criteria:**
+- The "Deposit Only" and "Deposit & Mint" buttons are disabled when the entered amount > wallet balance
+- A warning message is shown (e.g., "Insufficient balance")
+
+**Scenarios:**
+- **Scenario 1: Amount exceeds balance**
+  - Given the user has 1 WETH
+  - When they enter 2 WETH in the collateral amount field
+  - Then the deposit buttons are disabled and a warning is displayed
+- **Scenario 2: Amount equals balance (valid)**
+  - Given the user has 1 WETH
+  - When they enter 1 WETH
+  - Then the deposit buttons are enabled
+
+---
+
+## User Story: Handle User Rejection of Approval
+As a user, if I reject the token approval transaction, I expect the dApp to cancel the deposit flow gracefully and show a clear message.
+
+**Acceptance Criteria:**
+- When the user rejects the `approve` transaction in their wallet, the dApp catches the error
+- The deposit does not proceed
+- A status message is shown (e.g., "Approval cancelled")
+- The UI remains in a consistent state (no partial updates)
+
+**Scenarios:**
+- **Scenario 1: User rejects approval**
+  - Given the user clicks "Deposit Only"
+  - When the MetaMask approval prompt appears and the user clicks "Reject"
+  - Then the dApp shows "Approval cancelled" and does not call `depositCollateral`
+
+---
+
+## User Story: Handle User Rejection of Deposit
+As a user, if I approve the token but reject the deposit transaction, I expect the dApp to stop and inform me, without leaving the UI in a broken state.
+
+**Acceptance Criteria:**
+- After successful approval, if the user rejects the `depositCollateral` transaction, the dApp catches the error
+- A status message is shown (e.g., "Deposit cancelled")
+- The approval remains (the user does not need to re-approve if they try again immediately)
+
+**Scenarios:**
+- **Scenario 1: User rejects deposit after approving**
+  - Given the user approved the token spend
+  - When the deposit confirmation appears and the user rejects it
+  - Then the dApp shows "Deposit cancelled" and the form remains filled
+
+---
+
+## User Story: Handle Deposit Failure After Approval
+As a user, if the deposit transaction fails on-chain (e.g., contract revert), I want to see an error message and understand what happened.
+
+**Acceptance Criteria:**
+- If `depositCollateral` reverts (e.g., `DSCEngine__TokenNotAllowed` or other reason), the dApp catches the error
+- A descriptive error message is shown (e.g., "Transaction failed: …")
+- The UI does not crash; the user can try again
+
+**Scenarios:**
+- **Scenario 1: Deposit reverts due to contract logic**
+  - Given the user approved the token
+  - When the deposit transaction reverts with a known error (e.g., `DSCEngine__NeedsMoreThanZero`)
+  - Then the dApp displays the error reason and the form remains intact
+
+---
+
+## User Story: Prevent Zero Amount Deposit
+As a user, I want the dApp to prevent me from depositing 0 tokens, because it would waste gas and make no sense.
+
+**Acceptance Criteria:**
+- The deposit buttons are disabled when the amount is 0 or empty
+- Optionally, a validation message is shown
+
+**Scenarios:**
+- **Scenario 1: Amount is 0**
+  - Given the user enters 0 in the collateral amount field
+  - Then the deposit buttons are disabled
+- **Scenario 2: Amount is empty**
+  - Given the collateral amount field is blank
+  - Then the deposit buttons are disabled
+
+---
+
+## User Story: Refresh Dashboard After Deposit
+As a user, after a successful deposit, I want the dashboard to automatically update all relevant data so I can see my new position without manual refresh.
+
+**Acceptance Criteria:**
+- After the deposit transaction is confirmed, `loadAppState()` is triggered
+- Wallet balances, collateral breakdown, health factor, and total debt are refreshed
+- The updated values are displayed within a few seconds
+
+**Scenarios:**
+- **Scenario 1: Dashboard refreshes after deposit**
+  - Given the user deposits 1 WETH
+  - When the transaction is mined
+  - Then the wallet balance decreases, collateral table shows the new deposit, and health factor updates if applicable
+
+---
+
 ## User Story: Repay Debt
 
 - [ ] **Scenario 6: User repays debt and dashboard refreshes**
