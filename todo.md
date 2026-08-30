@@ -1,33 +1,5 @@
 # todo
 
-## User Story: Deposit Collateral (Happy Path)
-As a connected user with WETH or WBTC, I want to deposit collateral into the DSCEngine so that I can improve my health factor or mint DSC later.
-
-**Acceptance Criteria:**
-- The user selects a token (WETH/WBTC) and enters an amount > 0
-- The dApp validates the amount does not exceed the wallet balance
-- Clicking "Deposit Only" triggers `approve` then `depositCollateral`
-- After both transactions confirm, the dashboard refreshes:
-  - Wallet balance decreases
-  - Collateral breakdown table updates with new deposited balance and USD value
-  - Health factor and debt may update accordingly
-
-**Scenarios:**
-- **Scenario 1: Successful deposit of WETH**
-  - Given the user has 2 WETH and no existing deposits
-  - When they deposit 1 WETH
-  - Then the wallet balance shows 1 WETH, collateral table shows 1 WETH deposited, and USD value is displayed
-- **Scenario 2: Successful deposit of WBTC**
-  - Given the user has 0.5 WBTC
-  - When they deposit 0.1 WBTC
-  - Then the wallet balance decreases by 0.1 WBTC, collateral table shows 0.1 WBTC deposited
-- **Scenario 3: Deposit when already having collateral**
-  - Given the user has 1 WETH deposited and 2 WETH in wallet
-  - When they deposit another 0.5 WETH
-  - Then the deposited balance becomes 1.5 WETH, wallet balance becomes 1.5 WETH
-
----
-
 ## User Story: Prevent Deposit with Insufficient Balance
 As a user, I want the dApp to prevent me from attempting a deposit that exceeds my wallet balance, so I don't waste gas on a failing transaction.
 
@@ -140,6 +112,40 @@ As a user, after a successful deposit, I want the dashboard to automatically upd
 ---
 
 # in progress
+
+## User Story 12: Deposit Collateral (Happy Path)
+As a connected user with WETH or WBTC, I want to deposit collateral
+into the DSCEngine so that I can improve my health factor or mint DSC
+later.
+
+**Acceptance Criteria:**
+- The user selects a token (WETH/WBTC) and enters an amount > 0
+- The dApp validates the amount does not exceed the wallet balance
+- Clicking "Deposit Only" triggers `approve` then `depositCollateral`
+- After both transactions confirm, the dashboard refreshes:
+  - Wallet balance decreases
+  - Collateral breakdown table updates with new deposited balance and
+    USD value
+  - Health factor and debt may update accordingly
+
+**Scenarios:**
+- [x] **Scenario 1: Successful deposit of WETH**
+  - Given the user has 2 WETH and no existing deposits
+  - When they deposit 1 WETH
+  - Then the wallet balance shows 1 WETH, collateral table shows 1
+    WETH deposited, and USD value is displayed
+- [ ] **Scenario 2: Successful deposit of WBTC**
+  - Given the user has 0.5 WBTC
+  - When they deposit 0.1 WBTC
+  - Then the wallet balance decreases by 0.1 WBTC, collateral table
+    shows 0.1 WBTC deposited
+- [x] **Scenario 3: Deposit when already having collateral**
+  - Given the user has 1 WETH deposited and 2 WETH in wallet
+  - When they deposit another 0.5 WETH
+  - Then the deposited balance becomes 1.5 WETH, wallet balance
+    becomes 1.5 WETH
+
+---
 
 # done
 

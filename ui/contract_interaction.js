@@ -34,10 +34,10 @@ function getProvider() {
 }
 
 // --- Signer (for writes) ---
-function getSigner() {
+async function getSigner() {
   if (!_signer) {
     const provider = getProvider();
-    _signer = provider.getSigner(); // uses currently connected account
+    _signer = await provider.getSigner();
   }
   return _signer;
 }
@@ -64,8 +64,8 @@ function getErcRead(name) {
 // --- Write-enabled DSCEngine contract ---
 // Always returns a fresh instance with the current signer.
 // This is cheap and guarantees the correct account is used.
-function getDscEngineWrite() {
-  return new ethers.Contract(DSC_ENGINE_ADDRESS, DSC_ENGINE_ABI, getSigner());
+async function getDscEngineWrite() {
+  return new ethers.Contract(DSC_ENGINE_ADDRESS, DSC_ENGINE_ABI, await getSigner());
 }
 
 // Read health factor
@@ -101,13 +101,14 @@ async function fetchUsdValue(tokenAddress, amount) {
 }
 
 // Depositing collateral
-async function depositCollateral(tokenAddress, amount) {
-  const engine = getDscEngineWrite();
-  // First approve the engine to spend the token
-  const token = new ethers.Contract(tokenAddress, ERC20_ABI, getSigner());
-  const txApprove = await token.approve(DSC_ENGINE_ADDRESS, amount);
-  await txApprove.wait();
-  // Then deposit
-  const txDeposit = await engine.depositCollateral(tokenAddress, amount);
-  await txDeposit.wait();
+async function depositCollateral(tokenName, amount) {
+    const engine = await getDscEngineWrite();
+    // First approve the engine to spend the token
+    config = ERC20_CONFIG[tokenName];
+    const token = new ethers.Contract(config.address, config.abi, await getSigner());
+    const txApprove = await token.approve(DSC_ENGINE_ADDRESS, amount);
+    await txApprove.wait();
+    // Then deposit
+    const txDeposit = await engine.depositCollateral(config.address, amount);
+    await txDeposit.wait();
 }
