@@ -357,6 +357,8 @@ on(EVENTS.DepositFailed, () => {
     showStatus("Something went wrong. Please try again.", "error");
 });
 on(EVENTS.DepositSucceeded, () => {
+    collateralAmountInput.value = "";
+    collateralToDeposit.set(0);
     document.dispatchEvent(EVENTS.LoadAppState);
 });
 
