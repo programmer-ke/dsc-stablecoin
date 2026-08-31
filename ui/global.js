@@ -18,6 +18,9 @@ const EVENT_NAME_LIST = [
     "SwitchToSupportedNetwork",
     "ErrorSwitchingNetwork",
     "PromptManualNetworkConfig",
+    "DepositCollateral",
+    "DepositFailed",
+    "DepositSucceeded",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -74,6 +77,10 @@ const collateralWethBalance = createObservable(null);
 const collateralWethUsd = createObservable(null);
 const collateralWbtcBalance = createObservable(null);
 const collateralWbtcUsd = createObservable(null);
+const collateralToken = createObservable(null);
+const collateralToDeposit = createObservable(null);
+
+const depositInProgress = createObservable(false);
 
 
 // handlers
@@ -164,6 +171,10 @@ function walletConnectionButtonClickHandler() {
     } else {
 	console.log("not implemented");
     }
+}
+
+function depositOnlyClickHandler() {
+    document.dispatchEvent(EVENTS.DepositCollateral);
 }
 
 function disconnectWallet() {
@@ -302,7 +313,26 @@ function _sameUserIsConnected(user) {
 }
 
 
-// event mappings
+const services = {
+    depositCollateral: async () => {
+	if (!canDepositCollateral()) return;
+
+	try {
+	    depositInProgress.set(true);
+	    const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), 18);
+	    await depositCollateral(collateralToken.value, amountInWei)
+	    document.dispatchEvent(EVENTS.DepositSucceeded);
+	} catch (error) {
+	    console.error(error);
+	    document.dispatchEvent(EVENTS.DepositFailed);
+	} finally {
+	    depositInProgress.set(false);
+	}
+    },
+}
+
+
+// custom event mappings
 on(EVENTS.RegisterWalletHandlers, registerWalletHandlers);
 on(EVENTS.CheckWalletConnection, detectWallet);
 on(EVENTS.DisconnectWallet, disconnectWallet);
@@ -314,17 +344,65 @@ on(EVENTS.ErrorSwitchingNetwork, notifyErrorSwitchingNetwork);
 on(EVENTS.PromptManualNetworkConfig, promptUserToConfigureNetwork);
 on(EVENTS.ResetAppState, resetAppState);
 on(EVENTS.LoadAppState, loadAppState);
+on(EVENTS.DepositCollateral, services.depositCollateral);
 on(EVENTS.ErrorRequestingWalletConnection, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
 on(EVENTS.WalletAccountsEmpty, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
+on(EVENTS.DepositFailed, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
+on(EVENTS.DepositSucceeded, () => {
+    document.dispatchEvent(EVENTS.LoadAppState);
+});
 
+
+// Connection button listeners
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
 walletConnectionButton.addEventListener("click", walletConnectionButtonClickHandler);
 
+const depositOnlyButton = document.getElementById("btn-deposit-only");
+depositOnlyButton.addEventListener("click", depositOnlyClickHandler);
+
+// collateral token bindings
+function _collateralTokenAddress(selectValue) {
+    return selectValue == "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
+}
+const collateralTokenSelector = document.getElementById("collateral-token");
+collateralToken.set(collateralTokenSelector.value);
+collateralTokenSelector.addEventListener("change", () => {
+    collateralToken.set(collateralTokenSelector.value);
+});
+
+
+const collateralAmountInput = document.getElementById("collateral-amount");
+collateralToDeposit.set(parseFloat(collateralAmountInput.value) || 0);
+collateralAmountInput.addEventListener("change", () => {
+    collateralToDeposit.set(parseFloat(collateralAmountInput.value) || 0);
+});
+
+
 // state change listeners
+
+function canDepositCollateral() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    const hasAmount = collateralToDeposit.value > 0;
+    const hasToken = collateralToken.value !== null;
+    return isConnected && hasAmount && hasToken;
+}
+
+function updateDepositOnlyButton() {
+    const notBusy = !depositInProgress.value 
+    depositOnlyButton.disabled = !(canDepositCollateral() && notBusy);
+}
+
+collateralToDeposit.onChange(updateDepositOnlyButton);
+collateralToken.onChange(updateDepositOnlyButton);
+wallet.onChange(updateDepositOnlyButton);
+depositInProgress.onChange(updateDepositOnlyButton);
+
 wallet.onChange(state => {
     const btn = walletConnectionButton;
     const config = BUTTON_CONFIG[state];
