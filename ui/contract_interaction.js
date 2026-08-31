@@ -6,9 +6,9 @@ const WBTC_ADDRESS = "0x92f3B59a79bFf5dc60c0d59eA13a44D082B2bdFC";
 const WETH_ADDRESS = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
 
 const ERC20_CONFIG = {
-    dsc: { address: DSC_ADDRESS, abi: DSC_ABI },
-    weth: { address: WETH_ADDRESS, abi: SEPOLIA_WETH_ABI },
-    wbtc: { address: WBTC_ADDRESS, abi: SEPOLIA_WBTC_ABI },
+    dsc: { address: DSC_ADDRESS, abi: DSC_ABI, decimals: 18 },
+    weth: { address: WETH_ADDRESS, abi: SEPOLIA_WETH_ABI, decimals: 18 },
+    wbtc: { address: WBTC_ADDRESS, abi: SEPOLIA_WBTC_ABI, decimals: 8 },
 };
 
 let _provider = null;

@@ -319,8 +319,10 @@ const services = {
 
 	try {
 	    depositInProgress.set(true);
-	    const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), 18);
-	    await depositCollateral(collateralToken.value, amountInWei)
+	    const tokenName = collateralToken.value;
+	    const decimals = ERC20_CONFIG[tokenName].decimals;
+	    const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+	    await depositCollateral(tokenName, amountInWei);
 	    document.dispatchEvent(EVENTS.DepositSucceeded);
 	} catch (error) {
 	    console.error(error);
@@ -394,7 +396,7 @@ function canDepositCollateral() {
 }
 
 function updateDepositOnlyButton() {
-    const notBusy = !depositInProgress.value 
+    const notBusy = !depositInProgress.value;
     depositOnlyButton.disabled = !(canDepositCollateral() && notBusy);
 }
 
@@ -480,7 +482,7 @@ wethBalance.onChange(value => {
 });
 
 wbtcBalance.onChange(value => {
-    _updateDashboardNumber(value, "wbtc-balance", 8);
+    _updateDashboardNumber(value, "wbtc-balance", ERC20_CONFIG.wbtc.decimals);
 });
 
 collateralWethBalance.onChange(value => {
@@ -492,7 +494,7 @@ collateralWethUsd.onChange(value => {
 });
 
 collateralWbtcBalance.onChange(value => {
-    _updateDashboardNumber(value, "collateral-wbtc-balance", 8);
+    _updateDashboardNumber(value, "collateral-wbtc-balance", ERC20_CONFIG.wbtc.decimals);
 });
 
 collateralWbtcUsd.onChange(value => {

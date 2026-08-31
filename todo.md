@@ -113,6 +113,9 @@ As a user, after a successful deposit, I want the dashboard to automatically upd
 
 # in progress
 
+
+# done
+
 ## User Story 12: Deposit Collateral (Happy Path)
 As a connected user with WETH or WBTC, I want to deposit collateral
 into the DSCEngine so that I can improve my health factor or mint DSC
@@ -134,7 +137,7 @@ later.
   - When they deposit 1 WETH
   - Then the wallet balance shows 1 WETH, collateral table shows 1
     WETH deposited, and USD value is displayed
-- [ ] **Scenario 2: Successful deposit of WBTC**
+- [x] **Scenario 2: Successful deposit of WBTC**
   - Given the user has 0.5 WBTC
   - When they deposit 0.1 WBTC
   - Then the wallet balance decreases by 0.1 WBTC, collateral table
@@ -146,8 +149,6 @@ later.
     becomes 1.5 WETH
 
 ---
-
-# done
 
 ## User Story 11: Dashboard Resets on Disconnect
 As a user who disconnects their wallet, I want all dashboard data to
