@@ -104,7 +104,7 @@ async function fetchUsdValue(tokenAddress, amount) {
 async function depositCollateral(tokenName, amount) {
     const engine = await getDscEngineWrite();
     // First approve the engine to spend the token
-    config = ERC20_CONFIG[tokenName];
+    const config = ERC20_CONFIG[tokenName];
     const token = new ethers.Contract(config.address, config.abi, await getSigner());
     const txApprove = await token.approve(DSC_ENGINE_ADDRESS, amount);
     await txApprove.wait();
