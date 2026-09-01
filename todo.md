@@ -1,24 +1,5 @@
 # todo
 
-## User Story: Prevent Deposit with Insufficient Balance
-As a user, I want the dApp to prevent me from attempting a deposit that exceeds my wallet balance, so I don't waste gas on a failing transaction.
-
-**Acceptance Criteria:**
-- The "Deposit Only" and "Deposit & Mint" buttons are disabled when the entered amount > wallet balance
-- A warning message is shown (e.g., "Insufficient balance")
-
-**Scenarios:**
-- **Scenario 1: Amount exceeds balance**
-  - Given the user has 1 WETH
-  - When they enter 2 WETH in the collateral amount field
-  - Then the deposit buttons are disabled and a warning is displayed
-- **Scenario 2: Amount equals balance (valid)**
-  - Given the user has 1 WETH
-  - When they enter 1 WETH
-  - Then the deposit buttons are enabled
-
----
-
 ## User Story: Handle User Rejection of Approval
 As a user, if I reject the token approval transaction, I expect the dApp to cancel the deposit flow gracefully and show a clear message.
 
@@ -113,6 +94,27 @@ As a user, after a successful deposit, I want the dashboard to automatically upd
 
 # in progress
 
+## User Story: Prevent Deposit with Insufficient Balance
+As a user, I want the dApp to prevent me from attempting a deposit
+that exceeds my wallet balance, so I don't waste gas on a failing
+transaction.
+
+**Acceptance Criteria:**
+- The "Deposit Only" and "Deposit & Mint" buttons are disabled when
+  the entered amount > wallet balance
+- A warning message is shown (e.g., "Insufficient balance")
+
+**Scenarios:**
+- [x] **Scenario 1: Amount exceeds balance**
+  - Given the user has 1 WETH
+  - When they enter 2 WETH in the collateral amount field
+  - Then the deposit buttons are disabled and a warning is displayed
+- [x] **Scenario 2: Amount equals balance (valid)**
+  - Given the user has 1 WETH
+  - When they enter 1 WETH
+  - Then the deposit buttons are enabled
+
+---
 
 # done
 

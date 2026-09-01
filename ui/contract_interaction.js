@@ -100,6 +100,14 @@ async function fetchUsdValue(tokenAddress, amount) {
   return await engine.getUsdValue(tokenAddress, amount);
 }
 
+
+// Calculate Health Factor
+async function calculateHealthFactor(dscAmount, collateralUsdValue) {
+    const engine = getDscEngineRead();
+    const newHf = await engine.calculateHealthFactor(dscAmount, collateralUsdValue);
+    return newHf;
+}
+
 // Depositing collateral
 async function depositCollateral(tokenName, amount) {
     const engine = await getDscEngineWrite();
