@@ -1,5 +1,20 @@
 # todo
 
+
+## User Story: Repay Debt
+
+- [ ] **Scenario 6: User repays debt and dashboard refreshes**
+ - **Given** the user has debt and the dashboard is displaying it
+ - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
+ - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
+ - **And** if fully repaid, displays "0.00"
+
+---
+
+# in progress
+
+# done
+
 ## User Story: Handle User Rejection of Approval
 As a user, if I reject the token approval transaction, I expect the dApp to cancel the deposit flow gracefully and show a clear message.
 
@@ -81,20 +96,6 @@ As a user, after a successful deposit, I want the dashboard to automatically upd
   - Then the wallet balance decreases, collateral table shows the new deposit, and health factor updates if applicable
 
 ---
-
-## User Story: Repay Debt
-
-- [ ] **Scenario 6: User repays debt and dashboard refreshes**
- - **Given** the user has debt and the dashboard is displaying it
- - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
- - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
- - **And** if fully repaid, displays "0.00"
-
----
-
-# in progress
-
-# done
 
 ## User Story: Prevent Deposit with Insufficient Balance
 As a user, I want the dApp to prevent me from attempting a deposit
