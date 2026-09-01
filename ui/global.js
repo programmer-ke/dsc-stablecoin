@@ -450,7 +450,7 @@ if (refreshDepositMintHfPreviewLink) {
 		// 2 ** 256 implies no debt (infinite health)
 		text = "OK";
 	    else
-		text = ethers.formatUnits(value);
+		text = ethers.formatUnits(newHf);
 
             document.getElementById("deposit-mint-preview-new-hf").textContent = text;
         } catch (err) {
