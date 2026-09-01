@@ -1,23 +1,19 @@
 # todo
 
-## User Story: Prevent Deposit with Insufficient Balance
-As a user, I want the dApp to prevent me from attempting a deposit that exceeds my wallet balance, so I don't waste gas on a failing transaction.
 
-**Acceptance Criteria:**
-- The "Deposit Only" and "Deposit & Mint" buttons are disabled when the entered amount > wallet balance
-- A warning message is shown (e.g., "Insufficient balance")
+## User Story: Repay Debt
 
-**Scenarios:**
-- **Scenario 1: Amount exceeds balance**
-  - Given the user has 1 WETH
-  - When they enter 2 WETH in the collateral amount field
-  - Then the deposit buttons are disabled and a warning is displayed
-- **Scenario 2: Amount equals balance (valid)**
-  - Given the user has 1 WETH
-  - When they enter 1 WETH
-  - Then the deposit buttons are enabled
+- [ ] **Scenario 6: User repays debt and dashboard refreshes**
+ - **Given** the user has debt and the dashboard is displaying it
+ - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
+ - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
+ - **And** if fully repaid, displays "0.00"
 
 ---
+
+# in progress
+
+# done
 
 ## User Story: Handle User Rejection of Approval
 As a user, if I reject the token approval transaction, I expect the dApp to cancel the deposit flow gracefully and show a clear message.
@@ -101,17 +97,27 @@ As a user, after a successful deposit, I want the dashboard to automatically upd
 
 ---
 
-## User Story: Repay Debt
+## User Story: Prevent Deposit with Insufficient Balance
+As a user, I want the dApp to prevent me from attempting a deposit
+that exceeds my wallet balance, so I don't waste gas on a failing
+transaction.
 
-- [ ] **Scenario 6: User repays debt and dashboard refreshes**
- - **Given** the user has debt and the dashboard is displaying it
- - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
- - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
- - **And** if fully repaid, displays "0.00"
+**Acceptance Criteria:**
+- The "Deposit Only" and "Deposit & Mint" buttons are disabled when
+  the entered amount > wallet balance
+- A warning message is shown (e.g., "Insufficient balance")
+
+**Scenarios:**
+- [x] **Scenario 1: Amount exceeds balance**
+  - Given the user has 1 WETH
+  - When they enter 2 WETH in the collateral amount field
+  - Then the deposit buttons are disabled and a warning is displayed
+- [x] **Scenario 2: Amount equals balance (valid)**
+  - Given the user has 1 WETH
+  - When they enter 1 WETH
+  - Then the deposit buttons are enabled
 
 ---
-
-# in progress
 
 ## User Story 12: Deposit Collateral (Happy Path)
 As a connected user with WETH or WBTC, I want to deposit collateral
@@ -134,7 +140,7 @@ later.
   - When they deposit 1 WETH
   - Then the wallet balance shows 1 WETH, collateral table shows 1
     WETH deposited, and USD value is displayed
-- [ ] **Scenario 2: Successful deposit of WBTC**
+- [x] **Scenario 2: Successful deposit of WBTC**
   - Given the user has 0.5 WBTC
   - When they deposit 0.1 WBTC
   - Then the wallet balance decreases by 0.1 WBTC, collateral table
@@ -146,8 +152,6 @@ later.
     becomes 1.5 WETH
 
 ---
-
-# done
 
 ## User Story 11: Dashboard Resets on Disconnect
 As a user who disconnects their wallet, I want all dashboard data to

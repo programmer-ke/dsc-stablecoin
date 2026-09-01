@@ -21,6 +21,7 @@ const EVENT_NAME_LIST = [
     "DepositCollateral",
     "DepositFailed",
     "DepositSucceeded",
+    "ErrorUpdatingHealthFactorPreview",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -319,8 +320,10 @@ const services = {
 
 	try {
 	    depositInProgress.set(true);
-	    const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), 18);
-	    await depositCollateral(collateralToken.value, amountInWei)
+	    const tokenName = collateralToken.value;
+	    const decimals = ERC20_CONFIG[tokenName].decimals;
+	    const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+	    await depositCollateral(tokenName, amountInWei);
 	    document.dispatchEvent(EVENTS.DepositSucceeded);
 	} catch (error) {
 	    console.error(error);
@@ -345,6 +348,9 @@ on(EVENTS.PromptManualNetworkConfig, promptUserToConfigureNetwork);
 on(EVENTS.ResetAppState, resetAppState);
 on(EVENTS.LoadAppState, loadAppState);
 on(EVENTS.DepositCollateral, services.depositCollateral);
+on(EVENTS.ErrorUpdatingHealthFactorPreview, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
 on(EVENTS.ErrorRequestingWalletConnection, () => {
   showStatus("Something went wrong. Please try again.", "error");
 });
@@ -355,6 +361,8 @@ on(EVENTS.DepositFailed, () => {
     showStatus("Something went wrong. Please try again.", "error");
 });
 on(EVENTS.DepositSucceeded, () => {
+    collateralAmountInput.value = "";
+    collateralToDeposit.set(0);
     document.dispatchEvent(EVENTS.LoadAppState);
 });
 
@@ -383,18 +391,110 @@ collateralAmountInput.addEventListener("change", () => {
     collateralToDeposit.set(parseFloat(collateralAmountInput.value) || 0);
 });
 
+const mintMaxLink = document.getElementById("mint-max-link");
+if (mintMaxLink) {
+    mintMaxLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        const tokenName = collateralToken.value;
+        let balance = null;
+        let decimals = 18;
+
+        if (tokenName === "weth") {
+            balance = wethBalance.value;
+        } else if (tokenName === "wbtc") {
+            balance = wbtcBalance.value;
+            decimals = ERC20_CONFIG.wbtc.decimals;
+        }
+
+        if (balance !== null) {
+            const formattedBalance = ethers.formatUnits(balance, decimals);
+            collateralAmountInput.value = formattedBalance;
+            // Manually update the observable since programmatic value changes don't trigger 'change' events
+            collateralToDeposit.set(parseFloat(formattedBalance) || 0);
+        }
+    });
+}
+
+// Deposit & Mint Health Factor Preview
+const refreshDepositMintHfPreviewLink = document.getElementById("refresh-deposit-mint-hf-preview");
+if (refreshDepositMintHfPreviewLink) {
+    refreshDepositMintHfPreviewLink.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        if (wallet.value !== ConnectionState.CONNECTED) {
+            return;
+        }
+
+        const amount = collateralToDeposit.value;
+        if (!amount || amount <= 0) {
+            document.getElementById("deposit-mint-preview-new-hf").textContent = "--";
+            return;
+        }
+
+        try {
+            const tokenName = collateralToken.value;
+            const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
+            const decimals = ERC20_CONFIG[tokenName].decimals;
+            const amountInWei = ethers.parseUnits(amount.toString(), decimals);
+            const depositUsd = await fetchUsdValue(tokenAddress, amountInWei);
+
+            const existingWethUsd = collateralWethUsd.value ?? 0n;
+            const existingWbtcUsd = collateralWbtcUsd.value ?? 0n;
+            const newTotalCollateralUsd = existingWethUsd + existingWbtcUsd + depositUsd;
+
+            const debt = totalDscMinted.value ?? 0n;
+	    const newHf = await calculateHealthFactor(debt, newTotalCollateralUsd);
+
+	    const max_uint256 = BigInt(2**256) - 1n;
+	    if (newHf === max_uint256)
+		// 2 ** 256 implies no debt (infinite health)
+		text = "OK";
+	    else
+		text = ethers.formatUnits(newHf);
+
+            document.getElementById("deposit-mint-preview-new-hf").textContent = text;
+        } catch (err) {
+            console.error("Preview failed", err);
+            document.getElementById("deposit-mint-preview-new-hf").textContent = "--";
+	    document.dispatchEvent(EVENTS.ErrorUpdatingHealthFactorPreview);
+        }
+    });
+}
+
 
 // state change listeners
 
+function _validDepositTokenAmount() {
+    if (collateralToDeposit.value <= 0) {
+	return false;
+    } else if (collateralToken.value === null) {
+	return false;
+    } else {
+	const tokenName = collateralToken.value;
+	const tokenBalance = tokenName === "weth" ? wethBalance.value : wbtcBalance.value;
+	if (tokenBalance === null) {
+	    // balance not yet loaded, optimistically allow deposits
+	    return true;
+	}
+
+	const decimals = ERC20_CONFIG[tokenName].decimals;
+	const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+
+	if (amountInWei > tokenBalance) {
+	    return false;
+	} else {
+	    return true
+	}
+    }
+}
+
 function canDepositCollateral() {
     const isConnected = wallet.value === ConnectionState.CONNECTED;
-    const hasAmount = collateralToDeposit.value > 0;
-    const hasToken = collateralToken.value !== null;
-    return isConnected && hasAmount && hasToken;
+    return isConnected && _validDepositTokenAmount();
 }
 
 function updateDepositOnlyButton() {
-    const notBusy = !depositInProgress.value 
+    const notBusy = !depositInProgress.value;
     depositOnlyButton.disabled = !(canDepositCollateral() && notBusy);
 }
 
@@ -434,10 +534,10 @@ userHealthFactor.onChange(value => {
 	text = "--";
 	state = "unknown";
     } else {
-	max_uint256 = BigInt(2**256) - 1n;
+	const max_uint256 = BigInt(2**256) - 1n;
 	if (value === max_uint256)
 	    // 2 ** 256 implies no debt (infinite health)
-	    text = "N/A";
+	    text = "OK";
 	else
 	    text = ethers.formatUnits(value);
 	if (value < 1e18)
@@ -480,7 +580,7 @@ wethBalance.onChange(value => {
 });
 
 wbtcBalance.onChange(value => {
-    _updateDashboardNumber(value, "wbtc-balance", 8);
+    _updateDashboardNumber(value, "wbtc-balance", ERC20_CONFIG.wbtc.decimals);
 });
 
 collateralWethBalance.onChange(value => {
@@ -492,12 +592,31 @@ collateralWethUsd.onChange(value => {
 });
 
 collateralWbtcBalance.onChange(value => {
-    _updateDashboardNumber(value, "collateral-wbtc-balance", 8);
+    _updateDashboardNumber(value, "collateral-wbtc-balance", ERC20_CONFIG.wbtc.decimals);
 });
 
 collateralWbtcUsd.onChange(value => {
     _updateDashboardNumber(value, "collateral-wbtc-usd");
 });
+
+function updateWalletBalanceDisplay() {
+    const tokenName = collateralToken.value;
+    let balance = null;
+    let decimals = 18;
+
+    if (tokenName === "weth") {
+        balance = wethBalance.value;
+    } else if (tokenName === "wbtc") {
+        balance = wbtcBalance.value;
+        decimals = ERC20_CONFIG.wbtc.decimals;
+    }
+
+    _updateDashboardNumber(balance, "wallet-balance", decimals);
+}
+
+collateralToken.onChange(updateWalletBalanceDisplay);
+wethBalance.onChange(updateWalletBalanceDisplay);
+wbtcBalance.onChange(updateWalletBalanceDisplay);
 
 
 function truncateAddr(address) {
