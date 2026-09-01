@@ -94,6 +94,8 @@ As a user, after a successful deposit, I want the dashboard to automatically upd
 
 # in progress
 
+# done
+
 ## User Story: Prevent Deposit with Insufficient Balance
 As a user, I want the dApp to prevent me from attempting a deposit
 that exceeds my wallet balance, so I don't waste gas on a failing
@@ -115,8 +117,6 @@ transaction.
   - Then the deposit buttons are enabled
 
 ---
-
-# done
 
 ## User Story 12: Deposit Collateral (Happy Path)
 As a connected user with WETH or WBTC, I want to deposit collateral
