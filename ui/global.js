@@ -470,38 +470,62 @@ if (refreshDepositMintHfPreviewLink) {
             return;
         }
 
-        const amount = collateralToDeposit.value;
-        if (!amount || amount <= 0) {
+        const depositAmount = collateralToDeposit.value;
+        const mintAmount = dscToMint.value;
+
+        // If both are zero/empty, show nothing
+        if ((!depositAmount || depositAmount <= 0) && (!mintAmount || mintAmount <= 0)) {
             document.getElementById("deposit-mint-preview-new-hf").textContent = "--";
             return;
         }
 
         try {
-            const tokenName = collateralToken.value;
-            const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
-            const decimals = ERC20_CONFIG[tokenName].decimals;
-            const amountInWei = ethers.parseUnits(amount.toString(), decimals);
-            const depositUsd = await fetchUsdValue(tokenAddress, amountInWei);
+            // 1. Calculate additional collateral USD from deposit (if any)
+            let depositUsd = 0n;
+            if (depositAmount && depositAmount > 0) {
+                const tokenName = collateralToken.value;
+                const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
+                const decimals = ERC20_CONFIG[tokenName].decimals;
+                const amountInWei = ethers.parseUnits(depositAmount.toString(), decimals);
+                depositUsd = await fetchUsdValue(tokenAddress, amountInWei);
+            }
 
             const existingWethUsd = collateralWethUsd.value ?? 0n;
             const existingWbtcUsd = collateralWbtcUsd.value ?? 0n;
             const newTotalCollateralUsd = existingWethUsd + existingWbtcUsd + depositUsd;
 
-            const debt = totalDscMinted.value ?? 0n;
-	    const newHf = await calculateHealthFactor(debt, newTotalCollateralUsd);
+            // 2. Calculate new total debt (existing + mint amount)
+            const existingDebt = totalDscMinted.value ?? 0n;
+            let newDebt = existingDebt;
+            if (mintAmount && mintAmount > 0) {
+                const mintAmountInWei = ethers.parseUnits(mintAmount.toString(), 18);
+                newDebt = existingDebt + mintAmountInWei;
+            }
 
-	    const max_uint256 = BigInt(2**256) - 1n;
-	    if (newHf === max_uint256)
-		// 2 ** 256 implies no debt (infinite health)
-		text = "OK";
-	    else
-		text = ethers.formatUnits(newHf);
+            // 3. Compute new health factor
+            const newHf = await calculateHealthFactor(newDebt, newTotalCollateralUsd);
 
-            document.getElementById("deposit-mint-preview-new-hf").textContent = text;
+            // 4. Display result
+            const max_uint256 = (2n ** 256n) - 1n;
+            let text;
+            if (newHf === max_uint256) {
+                text = "OK";
+            } else {
+                text = ethers.formatUnits(newHf);
+            }
+
+            const previewEl = document.getElementById("deposit-mint-preview-new-hf");
+            previewEl.textContent = text;
+
+            if (newHf < ethers.parseUnits("1", 18)) {
+                previewEl.setAttribute("data-state", "alert");
+            } else {
+                previewEl.setAttribute("data-state", "safe");
+            }
         } catch (err) {
             console.error("Preview failed", err);
             document.getElementById("deposit-mint-preview-new-hf").textContent = "--";
-	    document.dispatchEvent(EVENTS.ErrorUpdatingHealthFactorPreview);
+            document.dispatchEvent(EVENTS.ErrorUpdatingHealthFactorPreview);
         }
     });
 }
@@ -594,7 +618,7 @@ userHealthFactor.onChange(value => {
 	text = "--";
 	state = "unknown";
     } else {
-	const max_uint256 = BigInt(2**256) - 1n;
+	const max_uint256 = (2n ** 256n) - 1n;
 	if (value === max_uint256)
 	    // 2 ** 256 implies no debt (infinite health)
 	    text = "OK";
