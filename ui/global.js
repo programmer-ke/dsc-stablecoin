@@ -261,9 +261,8 @@ function resetAppState() {
     collateralWethUsd.set(null);
     collateralWbtcBalance.set(null);
     collateralWbtcUsd.set(null);
-    
-    dscToMint.set(null);
     mintInProgress.set(false);
+    depositInProgress.set(false);
 }
 
 async function loadAppState() {
