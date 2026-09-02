@@ -1,5 +1,37 @@
 # todo
 
+
+## User Story: Inform User When No Collateral Deposited
+As a user with no collateral deposited, I want to be informed that I
+cannot mint DSC so that I understand why the feature is unavailable.
+
+**Acceptance Criteria:**
+- If the user has no collateral deposited (collateral value = 0), the
+  mint button is disabled
+- A message is shown explaining that collateral must be deposited
+  first
+
+**Scenarios:**
+- **Scenario 1: No collateral deposited**
+  - Given the user is connected but has never deposited collateral
+  - When the dashboard loads
+  - Then the mint button is disabled and a message like "Deposit
+    collateral to mint DSC" is shown
+
+## User Story: Repay Debt
+
+- [ ] **Scenario 6: User repays debt and dashboard refreshes**
+ - **Given** the user has debt and the dashboard is displaying it
+ - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
+ - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
+ - **And** if fully repaid, displays "0.00"
+
+---
+
+# in progress
+
+# done
+
 ## User Story: Handle User Rejection of Mint Transaction
 As a user, if I reject the mint transaction in my wallet, I expect the
 dApp to cancel gracefully and show a clear message.
@@ -57,37 +89,6 @@ informed so that I can retry later.
     remains intact
 
 ---
-
-## User Story: Inform User When No Collateral Deposited
-As a user with no collateral deposited, I want to be informed that I
-cannot mint DSC so that I understand why the feature is unavailable.
-
-**Acceptance Criteria:**
-- If the user has no collateral deposited (collateral value = 0), the
-  mint button is disabled
-- A message is shown explaining that collateral must be deposited
-  first
-
-**Scenarios:**
-- **Scenario 1: No collateral deposited**
-  - Given the user is connected but has never deposited collateral
-  - When the dashboard loads
-  - Then the mint button is disabled and a message like "Deposit
-    collateral to mint DSC" is shown
-
-## User Story: Repay Debt
-
-- [ ] **Scenario 6: User repays debt and dashboard refreshes**
- - **Given** the user has debt and the dashboard is displaying it
- - **When** the user repays some DSC (in another tab or via the dApp) and the dashboard re-fetches
- - **Then** the new, lower debt value is displayed in `#total-dsc-debt`
- - **And** if fully repaid, displays "0.00"
-
----
-
-# in progress
-
-# done
 
 ## User Story: Warn When Mint Would Break Health Factor
 As a user, I want to be warned before minting if the transaction would
