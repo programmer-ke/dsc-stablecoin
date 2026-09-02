@@ -1,5 +1,124 @@
 # todo
 
+## User Story: Mint DSC (Happy Path)
+As a connected user with deposited collateral and a healthy position,
+I want to mint DSC so that I can borrow against my collateral.
+
+**Acceptance Criteria:**
+- The user enters an amount > 0 and clicks "Mint DSC"
+- The dApp calls `DSCEngine.mintDSC(amount)`
+- After the transaction confirms, the dashboard refreshes:
+  - `#total-dsc-debt` increases by the minted amount
+  - Health factor decreases (if collateral value unchanged)
+  - DSC wallet balance increases by the minted amount
+
+**Scenarios:**
+- **Scenario 1: Successful mint**
+  - Given the user has deposited collateral and health factor > 1
+  - When they mint 100 DSC
+  - Then the transaction succeeds, debt increases by 100, DSC balance
+    increases by 100, and health factor updates accordingly
+
+---
+
+## User Story: Prevent Minting Zero Amount
+As a user, I want the dApp to prevent me from minting 0 DSC so that I don't waste gas on a meaningless transaction.
+
+**Acceptance Criteria:**
+- The "Mint DSC" button is disabled when the amount is 0 or empty
+- Optionally, a validation message is shown
+
+**Scenarios:**
+- **Scenario 1: Amount is 0**
+  - Given the user enters 0 in the mint amount field
+  - Then the mint button is disabled
+- **Scenario 2: Amount is empty**
+  - Given the mint amount field is blank
+  - Then the mint button is disabled
+
+---
+
+## User Story: Warn When Mint Would Break Health Factor
+As a user, I want to be warned before minting if the transaction would cause my health factor to drop below the minimum, so that I can avoid a failed transaction.
+
+**Acceptance Criteria:**
+- The dApp calculates the projected health factor after minting (using `calculateHealthFactor`)
+- If the projected health factor < `MIN_HEALTH_FACTOR`, the mint button is disabled and a warning is shown
+- The warning message explains that the mint would break the health factor
+
+**Scenarios:**
+- **Scenario 1: Mint would break health factor**
+  - Given the user has a health factor of 1.2
+  - When they enter an amount that would drop the health factor below 1
+  - Then the mint button is disabled and a warning is displayed
+- **Scenario 2: Mint is safe**
+  - Given the user has a health factor of 2.0
+  - When they enter an amount that keeps the health factor ≥ 1
+  - Then the mint button is enabled and no warning is shown
+
+---
+
+## User Story: Handle User Rejection of Mint Transaction
+As a user, if I reject the mint transaction in my wallet, I expect the dApp to cancel gracefully and show a clear message.
+
+**Acceptance Criteria:**
+- When the user rejects the `mintDSC` transaction, the dApp catches the error
+- A status message is shown (e.g., "Mint cancelled")
+- The UI remains in a consistent state (no partial updates)
+
+**Scenarios:**
+- **Scenario 1: User rejects mint**
+  - Given the user clicks "Mint DSC"
+  - When the wallet confirmation appears and the user rejects it
+  - Then the dApp shows "Mint cancelled" and the form remains filled
+
+---
+
+## User Story: Handle Mint Transaction Failure On-Chain
+As a user, if the mint transaction fails on-chain (e.g., contract revert), I want to see an error message and understand what happened.
+
+**Acceptance Criteria:**
+- If `mintDSC` reverts (e.g., `DSCEngine__BreaksHealthFactor` or `DSCEngine__NeedsMoreThanZero`), the dApp catches the error
+- A descriptive error message is shown (e.g., "Transaction failed: health factor too low")
+- The UI does not crash; the user can try again
+
+**Scenarios:**
+- **Scenario 1: Mint reverts due to health factor**
+  - Given the user attempts to mint an amount that would break the health factor (and the frontend check was bypassed)
+  - When the transaction reverts with `DSCEngine__BreaksHealthFactor`
+  - Then the dApp displays the error reason and the form remains intact
+
+---
+
+## User Story: Handle Network Error During Mint
+As a user, if a network error occurs while minting, I want to be informed so that I can retry later.
+
+**Acceptance Criteria:**
+- If the RPC call throws a network error (timeout, connection issue), the dApp catches it
+- A status message is shown (e.g., "Network error, please try again")
+- The form remains filled and the user can retry
+
+**Scenarios:**
+- **Scenario 1: Network error during mint**
+  - Given the user clicks "Mint DSC"
+  - When the RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again" and the form remains intact
+
+---
+
+## User Story: Inform User When No Collateral Deposited
+As a user with no collateral deposited, I want to be informed that I cannot mint DSC so that I understand why the feature is unavailable.
+
+**Acceptance Criteria:**
+- If the user has no collateral deposited (collateral value = 0), the mint button is disabled
+- A message is shown explaining that collateral must be deposited first
+
+**Scenarios:**
+- **Scenario 1: No collateral deposited**
+  - Given the user is connected but has never deposited collateral
+  - When the dashboard loads
+  - Then the mint button is disabled and a message like "Deposit collateral to mint DSC" is shown
+
 
 ## User Story: Repay Debt
 
