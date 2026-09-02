@@ -120,3 +120,10 @@ async function depositCollateral(tokenName, amount) {
     const txDeposit = await engine.depositCollateral(config.address, amount);
     await txDeposit.wait();
 }
+
+// Mint DSC
+async function mintDsc(amount) {
+    const engine = await getDscEngineWrite();
+    const tx = await engine.mintDSC(amount);
+    await tx.wait();
+}

@@ -1,26 +1,5 @@
 # todo
 
-## User Story: Mint DSC (Happy Path)
-As a connected user with deposited collateral and a healthy position,
-I want to mint DSC so that I can borrow against my collateral.
-
-**Acceptance Criteria:**
-- The user enters an amount > 0 and clicks "Mint DSC"
-- The dApp calls `DSCEngine.mintDSC(amount)`
-- After the transaction confirms, the dashboard refreshes:
-  - `#total-dsc-debt` increases by the minted amount
-  - Health factor decreases (if collateral value unchanged)
-  - DSC wallet balance increases by the minted amount
-
-**Scenarios:**
-- **Scenario 1: Successful mint**
-  - Given the user has deposited collateral and health factor > 1
-  - When they mint 100 DSC
-  - Then the transaction succeeds, debt increases by 100, DSC balance
-    increases by 100, and health factor updates accordingly
-
----
-
 ## User Story: Prevent Minting Zero Amount
 As a user, I want the dApp to prevent me from minting 0 DSC so that I don't waste gas on a meaningless transaction.
 
@@ -132,9 +111,30 @@ As a user with no collateral deposited, I want to be informed that I cannot mint
 
 # in progress
 
+## User Story 19: Mint DSC (Happy Path)
+As a connected user with deposited collateral and a healthy position,
+I want to mint DSC so that I can borrow against my collateral.
+
+**Acceptance Criteria:**
+- The user enters an amount > 0 and clicks "Mint DSC"
+- The dApp calls `DSCEngine.mintDSC(amount)`
+- After the transaction confirms, the dashboard refreshes:
+  - `#total-dsc-debt` increases by the minted amount
+  - Health factor decreases (if collateral value unchanged)
+  - DSC wallet balance increases by the minted amount
+
+**Scenarios:**
+- [x] **Scenario 1: Successful mint**
+  - Given the user has deposited collateral and health factor > 1
+  - When they mint 100 DSC
+  - Then the transaction succeeds, debt increases by 100, DSC balance
+    increases by 100, and health factor updates accordingly
+
+---
+
 # done
 
-## User Story: Handle User Rejection of Approval
+## User Story 18: Handle User Rejection of Approval
 As a user, if I reject the token approval transaction, I expect the dApp to cancel the deposit flow gracefully and show a clear message.
 
 **Acceptance Criteria:**
@@ -151,7 +151,7 @@ As a user, if I reject the token approval transaction, I expect the dApp to canc
 
 ---
 
-## User Story: Handle User Rejection of Deposit
+## User Story 17: Handle User Rejection of Deposit
 As a user, if I approve the token but reject the deposit transaction, I expect the dApp to stop and inform me, without leaving the UI in a broken state.
 
 **Acceptance Criteria:**
@@ -167,7 +167,7 @@ As a user, if I approve the token but reject the deposit transaction, I expect t
 
 ---
 
-## User Story: Handle Deposit Failure After Approval
+## User Story 16: Handle Deposit Failure After Approval
 As a user, if the deposit transaction fails on-chain (e.g., contract revert), I want to see an error message and understand what happened.
 
 **Acceptance Criteria:**
@@ -183,7 +183,7 @@ As a user, if the deposit transaction fails on-chain (e.g., contract revert), I 
 
 ---
 
-## User Story: Prevent Zero Amount Deposit
+## User Story 15: Prevent Zero Amount Deposit
 As a user, I want the dApp to prevent me from depositing 0 tokens, because it would waste gas and make no sense.
 
 **Acceptance Criteria:**
@@ -200,7 +200,7 @@ As a user, I want the dApp to prevent me from depositing 0 tokens, because it wo
 
 ---
 
-## User Story: Refresh Dashboard After Deposit
+## User Story 14: Refresh Dashboard After Deposit
 As a user, after a successful deposit, I want the dashboard to automatically update all relevant data so I can see my new position without manual refresh.
 
 **Acceptance Criteria:**
@@ -216,7 +216,7 @@ As a user, after a successful deposit, I want the dashboard to automatically upd
 
 ---
 
-## User Story: Prevent Deposit with Insufficient Balance
+## User Story 13: Prevent Deposit with Insufficient Balance
 As a user, I want the dApp to prevent me from attempting a deposit
 that exceeds my wallet balance, so I don't waste gas on a failing
 transaction.

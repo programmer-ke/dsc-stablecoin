@@ -22,6 +22,9 @@ const EVENT_NAME_LIST = [
     "DepositFailed",
     "DepositSucceeded",
     "ErrorUpdatingHealthFactorPreview",
+    "MintDsc",
+    "MintSucceeded",
+    "MintFailed",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -82,6 +85,9 @@ const collateralToken = createObservable(null);
 const collateralToDeposit = createObservable(null);
 
 const depositInProgress = createObservable(false);
+
+const dscToMint = createObservable(null);
+const mintInProgress = createObservable(false);
 
 
 // handlers
@@ -255,6 +261,9 @@ function resetAppState() {
     collateralWethUsd.set(null);
     collateralWbtcBalance.set(null);
     collateralWbtcUsd.set(null);
+    
+    dscToMint.set(null);
+    mintInProgress.set(false);
 }
 
 async function loadAppState() {
@@ -332,6 +341,22 @@ const services = {
 	    depositInProgress.set(false);
 	}
     },
+    mintDsc: async () => {
+        if (!canMintDsc()) return;
+
+        try {
+            mintInProgress.set(true);
+            const amount = dscToMint.value;
+            const amountInWei = ethers.parseUnits(amount.toString(), 18);
+            await mintDsc(amountInWei);
+            document.dispatchEvent(EVENTS.MintSucceeded);
+        } catch (error) {
+            console.error(error);
+            document.dispatchEvent(EVENTS.MintFailed);
+        } finally {
+            mintInProgress.set(false);
+        }
+    },
 }
 
 
@@ -366,6 +391,16 @@ on(EVENTS.DepositSucceeded, () => {
     document.dispatchEvent(EVENTS.LoadAppState);
 });
 
+on(EVENTS.MintDsc, services.mintDsc);
+on(EVENTS.MintSucceeded, () => {
+    dscAmountInput.value = "";
+    dscToMint.set(0);
+    document.dispatchEvent(EVENTS.LoadAppState);
+});
+on(EVENTS.MintFailed, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
+
 
 // Connection button listeners
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
@@ -373,6 +408,11 @@ walletConnectionButton.addEventListener("click", walletConnectionButtonClickHand
 
 const depositOnlyButton = document.getElementById("btn-deposit-only");
 depositOnlyButton.addEventListener("click", depositOnlyClickHandler);
+
+const mintOnlyButton = document.getElementById("btn-mint-only");
+mintOnlyButton.addEventListener("click", () => {
+    document.dispatchEvent(EVENTS.MintDsc);
+});
 
 // collateral token bindings
 function _collateralTokenAddress(selectValue) {
@@ -389,6 +429,12 @@ const collateralAmountInput = document.getElementById("collateral-amount");
 collateralToDeposit.set(parseFloat(collateralAmountInput.value) || 0);
 collateralAmountInput.addEventListener("change", () => {
     collateralToDeposit.set(parseFloat(collateralAmountInput.value) || 0);
+});
+
+const dscAmountInput = document.getElementById("dsc-amount");
+dscToMint.set(parseFloat(dscAmountInput.value) || 0);
+dscAmountInput.addEventListener("change", () => {
+    dscToMint.set(parseFloat(dscAmountInput.value) || 0);
 });
 
 const mintMaxLink = document.getElementById("mint-max-link");
@@ -498,10 +544,25 @@ function updateDepositOnlyButton() {
     depositOnlyButton.disabled = !(canDepositCollateral() && notBusy);
 }
 
+function canMintDsc() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    const amount = dscToMint.value;
+    return isConnected && amount > 0;
+}
+
+function updateMintOnlyButton() {
+    const notBusy = !mintInProgress.value;
+    mintOnlyButton.disabled = !(canMintDsc() && notBusy);
+}
+
 collateralToDeposit.onChange(updateDepositOnlyButton);
 collateralToken.onChange(updateDepositOnlyButton);
 wallet.onChange(updateDepositOnlyButton);
 depositInProgress.onChange(updateDepositOnlyButton);
+
+dscToMint.onChange(updateMintOnlyButton);
+wallet.onChange(updateMintOnlyButton);
+mintInProgress.onChange(updateMintOnlyButton);
 
 wallet.onChange(state => {
     const btn = walletConnectionButton;
