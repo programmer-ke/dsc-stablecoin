@@ -549,6 +549,23 @@ if (mintMaxLink) {
     });
 }
 
+
+const maxBurnLink = document.getElementById("max-burn-link");
+if (maxBurnLink) {
+    maxBurnLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        const balance = dscBalance.value;
+        const debt = totalDscMinted.value;
+        if (balance === null || debt === null) return;
+
+        const maxWei = balance < debt ? balance : debt;
+        const formatted = ethers.formatUnits(maxWei, 18);
+        burnDscAmountInput.value = formatted;
+        dscToBurn.set(parseFloat(formatted) || 0);
+    });
+}
+
+
 // Deposit & Mint Health Factor Preview
 const refreshDepositMintHfPreviewLink = document.getElementById("refresh-deposit-mint-hf-preview");
 if (refreshDepositMintHfPreviewLink) {
@@ -790,6 +807,7 @@ function _updateDashboardNumber(value, elementId, decimals = 18) {
 
 totalDscMinted.onChange(value => {
     _updateDashboardNumber(value, "total-dsc-debt");
+    _updateDashboardNumber(value, "current-debt");
 });
 
 
