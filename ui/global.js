@@ -636,6 +636,65 @@ if (refreshDepositMintHfPreviewLink) {
     });
 }
 
+// Burn & Redeem Health Factor Preview
+const refreshBurnRedeemHfPreviewLink = document.getElementById("refresh-burn-redeem-hf-preview");
+if (refreshBurnRedeemHfPreviewLink) {
+    refreshBurnRedeemHfPreviewLink.addEventListener("click", async (e) => {
+        e.preventDefault();
+
+        if (wallet.value !== ConnectionState.CONNECTED) {
+            return;
+        }
+
+        const burnAmount = dscToBurn.value;
+        const existingDebt = totalDscMinted.value;
+
+        // If no burn amount entered, reset the preview
+        if (!burnAmount || burnAmount <= 0) {
+            document.getElementById("burn-redeem-preview-new-hf").textContent = "--";
+            return;
+        }
+
+        try {
+            const burnWei = toWei(burnAmount, 18);
+
+            if (existingDebt === null || burnWei > existingDebt) {
+                document.getElementById("burn-redeem-preview-new-hf").textContent = "--";
+                showStatus("Burn amount exceeds debt", "error");
+                return;
+            }
+
+            const newDebt = existingDebt - burnWei;
+            const existingWethUsd = collateralWethUsd.value ?? 0n;
+            const existingWbtcUsd = collateralWbtcUsd.value ?? 0n;
+            const newTotalCollateralUsd = existingWethUsd + existingWbtcUsd;
+
+            const newHf = await calculateHealthFactor(newDebt, newTotalCollateralUsd);
+
+            const max_uint256 = (2n ** 256n) - 1n;
+            let text;
+            if (newHf === max_uint256) {
+                text = "OK";
+            } else {
+                text = ethers.formatUnits(newHf);
+            }
+
+            const previewEl = document.getElementById("burn-redeem-preview-new-hf");
+            previewEl.textContent = text;
+
+            if (newHf < ethers.parseUnits("1", 18)) {
+                previewEl.setAttribute("data-state", "alert");
+            } else {
+                previewEl.setAttribute("data-state", "safe");
+            }
+        } catch (err) {
+            console.error("Burn preview failed", err);
+            document.getElementById("burn-redeem-preview-new-hf").textContent = "--";
+            document.dispatchEvent(EVENTS.ErrorUpdatingHealthFactorPreview);
+        }
+    });
+}
+
 
 // state change listeners
 

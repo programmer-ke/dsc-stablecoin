@@ -1,31 +1,5 @@
 # todo
 
-### User Story: Warn When Burn Would Leave Health Factor Broken
-As a user with a health factor already below the minimum, I want to be
-warned if burning the entered amount would still leave my health
-factor below the threshold, so I can avoid a failed transaction.
-
-**Acceptance Criteria:**
-- The dApp calculates the projected health factor after burning (using
-  `calculateHealthFactor`)
-- If the projected health factor < `MIN_HEALTH_FACTOR`, a warning is
-  shown
-- The warning message explains that the burn would not be enough to
-  restore health
-
-**Scenarios:**
-- **Scenario 1: Burn insufficient to fix health factor**
-  - Given the user has a health factor of 0.8 and debt of 1000 DSC
-  - When they enter 100 DSC to burn (leaving health factor still < 1)
-  - Then a warning is displayed
-- **Scenario 2: Burn sufficient to restore health**
-  - Given the user has a health factor of 0.8
-  - When they enter an amount that brings health factor ≥ 1
-  - Then no warning is shown
-
----
-
-
 ## User Story: Inform User When No Collateral Deposited
 As a user with no collateral deposited, I want to be informed that I
 cannot mint DSC so that I understand why the feature is unavailable.
@@ -55,8 +29,32 @@ cannot mint DSC so that I understand why the feature is unavailable.
 
 # in progress
 
-
 # done
+
+### User Story 43: Warn When Burn Would Leave Health Factor Broken
+As a user with a health factor already below the minimum, I want to be
+warned if burning the entered amount would still leave my health
+factor below the threshold, so I can avoid a failed transaction.
+
+**Acceptance Criteria:**
+- The dApp calculates the projected health factor after burning (using
+  `calculateHealthFactor`)
+- If the projected health factor < `MIN_HEALTH_FACTOR`, a warning is
+  shown
+- The warning message explains that the burn would not be enough to
+  restore health
+
+**Scenarios:**
+- [x] **Scenario 1: Burn insufficient to fix health factor**
+  - Given the user has a health factor of 0.8 and debt of 1000 DSC
+  - When they enter 100 DSC to burn (leaving health factor still < 1) and refresh the hf preview
+  - Then a warning is displayed
+- [x] **Scenario 2: Burn sufficient to restore health**
+  - Given the user has a health factor of 0.8
+  - When they enter an amount that brings health factor ≥ 1 and and refresh the hf preview
+  - Then no warning is shown
+
+---
 
 ## User Story 42: Handle User Rejection of Approval in Burn Flow
 As a user, if I reject the DSC approval transaction, I expect the dApp
