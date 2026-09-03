@@ -120,3 +120,21 @@ async function depositCollateral(tokenName, amount) {
     const txDeposit = await engine.depositCollateral(config.address, amount);
     await txDeposit.wait();
 }
+
+// Mint DSC
+async function mintDsc(amount) {
+    const engine = await getDscEngineWrite();
+    const tx = await engine.mintDSC(amount);
+    await tx.wait();
+}
+
+// Deposit collateral and mint DSC in one step
+async function depositCollateralAndMintDsc(tokenName, collateralAmount, dscAmount) {
+    const engine = await getDscEngineWrite();
+    const config = ERC20_CONFIG[tokenName];
+    const token = new ethers.Contract(config.address, config.abi, await getSigner());
+    const txApprove = await token.approve(DSC_ENGINE_ADDRESS, collateralAmount);
+    await txApprove.wait();
+    const tx = await engine.depositCollateralAndMintDsc(config.address, collateralAmount, dscAmount);
+    await tx.wait();
+}

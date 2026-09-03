@@ -21,7 +21,13 @@ const EVENT_NAME_LIST = [
     "DepositCollateral",
     "DepositFailed",
     "DepositSucceeded",
+    "DepositAndMint",
+    "DepositAndMintSucceeded",
+    "DepositAndMintFailed",
     "ErrorUpdatingHealthFactorPreview",
+    "MintDsc",
+    "MintSucceeded",
+    "MintFailed",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -83,6 +89,15 @@ const collateralToDeposit = createObservable(null);
 
 const depositInProgress = createObservable(false);
 
+const dscToMint = createObservable(null);
+const mintInProgress = createObservable(false);
+const depositAndMintInProgress = createObservable(false);
+
+// Convert a human-readable amount (number or string) to wei as a BigInt.
+// Safely handles exponent notation from parseFloat by using toFixed.
+function toWei(amount, decimals) {
+    return ethers.parseUnits(parseFloat(amount).toFixed(decimals), decimals);
+}
 
 // handlers
 async function switchToSupportedNetwork() {
@@ -255,6 +270,9 @@ function resetAppState() {
     collateralWethUsd.set(null);
     collateralWbtcBalance.set(null);
     collateralWbtcUsd.set(null);
+    mintInProgress.set(false);
+    depositInProgress.set(false);
+    depositAndMintInProgress.set(false);
 }
 
 async function loadAppState() {
@@ -322,7 +340,7 @@ const services = {
 	    depositInProgress.set(true);
 	    const tokenName = collateralToken.value;
 	    const decimals = ERC20_CONFIG[tokenName].decimals;
-	    const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+	    const amountInWei = toWei(collateralToDeposit.value, decimals);
 	    await depositCollateral(tokenName, amountInWei);
 	    document.dispatchEvent(EVENTS.DepositSucceeded);
 	} catch (error) {
@@ -331,6 +349,40 @@ const services = {
 	} finally {
 	    depositInProgress.set(false);
 	}
+    },
+    mintDsc: async () => {
+        if (!canMintDsc()) return;
+
+        try {
+            mintInProgress.set(true);
+            const amount = dscToMint.value;
+            const amountInWei = toWei(amount, 18);
+            await mintDsc(amountInWei);
+            document.dispatchEvent(EVENTS.MintSucceeded);
+        } catch (error) {
+            console.error(error);
+            document.dispatchEvent(EVENTS.MintFailed);
+        } finally {
+            mintInProgress.set(false);
+        }
+    },
+    depositAndMint: async () => {
+        if (!canDepositAndMint()) return;
+
+        try {
+            depositAndMintInProgress.set(true);
+            const tokenName = collateralToken.value;
+            const decimals = ERC20_CONFIG[tokenName].decimals;
+            const collateralInWei = toWei(collateralToDeposit.value, decimals);
+            const dscInWei = toWei(dscToMint.value, 18);
+            await depositCollateralAndMintDsc(tokenName, collateralInWei, dscInWei);
+            document.dispatchEvent(EVENTS.DepositAndMintSucceeded);
+        } catch (error) {
+            console.error(error);
+            document.dispatchEvent(EVENTS.DepositAndMintFailed);
+        } finally {
+            depositAndMintInProgress.set(false);
+        }
     },
 }
 
@@ -366,6 +418,28 @@ on(EVENTS.DepositSucceeded, () => {
     document.dispatchEvent(EVENTS.LoadAppState);
 });
 
+on(EVENTS.DepositAndMint, services.depositAndMint);
+on(EVENTS.DepositAndMintSucceeded, () => {
+    collateralAmountInput.value = "";
+    dscAmountInput.value = "";
+    collateralToDeposit.set(0);
+    dscToMint.set(0);
+    document.dispatchEvent(EVENTS.LoadAppState);
+});
+on(EVENTS.DepositAndMintFailed, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
+
+on(EVENTS.MintDsc, services.mintDsc);
+on(EVENTS.MintSucceeded, () => {
+    dscAmountInput.value = "";
+    dscToMint.set(0);
+    document.dispatchEvent(EVENTS.LoadAppState);
+});
+on(EVENTS.MintFailed, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
+
 
 // Connection button listeners
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
@@ -373,6 +447,16 @@ walletConnectionButton.addEventListener("click", walletConnectionButtonClickHand
 
 const depositOnlyButton = document.getElementById("btn-deposit-only");
 depositOnlyButton.addEventListener("click", depositOnlyClickHandler);
+
+const mintOnlyButton = document.getElementById("btn-mint-only");
+mintOnlyButton.addEventListener("click", () => {
+    document.dispatchEvent(EVENTS.MintDsc);
+});
+
+const depositAndMintButton = document.getElementById("btn-deposit-mint");
+depositAndMintButton.addEventListener("click", () => {
+    document.dispatchEvent(EVENTS.DepositAndMint);
+});
 
 // collateral token bindings
 function _collateralTokenAddress(selectValue) {
@@ -389,6 +473,12 @@ const collateralAmountInput = document.getElementById("collateral-amount");
 collateralToDeposit.set(parseFloat(collateralAmountInput.value) || 0);
 collateralAmountInput.addEventListener("change", () => {
     collateralToDeposit.set(parseFloat(collateralAmountInput.value) || 0);
+});
+
+const dscAmountInput = document.getElementById("dsc-amount");
+dscToMint.set(parseFloat(dscAmountInput.value) || 0);
+dscAmountInput.addEventListener("change", () => {
+    dscToMint.set(parseFloat(dscAmountInput.value) || 0);
 });
 
 const mintMaxLink = document.getElementById("mint-max-link");
@@ -425,38 +515,62 @@ if (refreshDepositMintHfPreviewLink) {
             return;
         }
 
-        const amount = collateralToDeposit.value;
-        if (!amount || amount <= 0) {
+        const depositAmount = collateralToDeposit.value;
+        const mintAmount = dscToMint.value;
+
+        // If both are zero/empty, show nothing
+        if ((!depositAmount || depositAmount <= 0) && (!mintAmount || mintAmount <= 0)) {
             document.getElementById("deposit-mint-preview-new-hf").textContent = "--";
             return;
         }
 
         try {
-            const tokenName = collateralToken.value;
-            const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
-            const decimals = ERC20_CONFIG[tokenName].decimals;
-            const amountInWei = ethers.parseUnits(amount.toString(), decimals);
-            const depositUsd = await fetchUsdValue(tokenAddress, amountInWei);
+            // 1. Calculate additional collateral USD from deposit (if any)
+            let depositUsd = 0n;
+            if (depositAmount && depositAmount > 0) {
+                const tokenName = collateralToken.value;
+                const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
+                const decimals = ERC20_CONFIG[tokenName].decimals;
+                const amountInWei = toWei(depositAmount, decimals);
+                depositUsd = await fetchUsdValue(tokenAddress, amountInWei);
+            }
 
             const existingWethUsd = collateralWethUsd.value ?? 0n;
             const existingWbtcUsd = collateralWbtcUsd.value ?? 0n;
             const newTotalCollateralUsd = existingWethUsd + existingWbtcUsd + depositUsd;
 
-            const debt = totalDscMinted.value ?? 0n;
-	    const newHf = await calculateHealthFactor(debt, newTotalCollateralUsd);
+            // 2. Calculate new total debt (existing + mint amount)
+            const existingDebt = totalDscMinted.value ?? 0n;
+            let newDebt = existingDebt;
+            if (mintAmount && mintAmount > 0) {
+                const mintAmountInWei = toWei(mintAmount, 18);
+                newDebt = existingDebt + mintAmountInWei;
+            }
 
-	    const max_uint256 = BigInt(2**256) - 1n;
-	    if (newHf === max_uint256)
-		// 2 ** 256 implies no debt (infinite health)
-		text = "OK";
-	    else
-		text = ethers.formatUnits(newHf);
+            // 3. Compute new health factor
+            const newHf = await calculateHealthFactor(newDebt, newTotalCollateralUsd);
 
-            document.getElementById("deposit-mint-preview-new-hf").textContent = text;
+            // 4. Display result
+            const max_uint256 = (2n ** 256n) - 1n;
+            let text;
+            if (newHf === max_uint256) {
+                text = "OK";
+            } else {
+                text = ethers.formatUnits(newHf);
+            }
+
+            const previewEl = document.getElementById("deposit-mint-preview-new-hf");
+            previewEl.textContent = text;
+
+            if (newHf < ethers.parseUnits("1", 18)) {
+                previewEl.setAttribute("data-state", "alert");
+            } else {
+                previewEl.setAttribute("data-state", "safe");
+            }
         } catch (err) {
             console.error("Preview failed", err);
             document.getElementById("deposit-mint-preview-new-hf").textContent = "--";
-	    document.dispatchEvent(EVENTS.ErrorUpdatingHealthFactorPreview);
+            document.dispatchEvent(EVENTS.ErrorUpdatingHealthFactorPreview);
         }
     });
 }
@@ -478,12 +592,12 @@ function _validDepositTokenAmount() {
 	}
 
 	const decimals = ERC20_CONFIG[tokenName].decimals;
-	const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+	const amountInWei = toWei(collateralToDeposit.value, decimals);
 
 	if (amountInWei > tokenBalance) {
 	    return false;
 	} else {
-	    return true
+	    return true;
 	}
     }
 }
@@ -498,10 +612,42 @@ function updateDepositOnlyButton() {
     depositOnlyButton.disabled = !(canDepositCollateral() && notBusy);
 }
 
+function canMintDsc() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    const amount = dscToMint.value;
+    return isConnected && amount > 0;
+}
+
+function updateMintOnlyButton() {
+    const notBusy = !mintInProgress.value;
+    mintOnlyButton.disabled = !(canMintDsc() && notBusy);
+}
+
+function canDepositAndMint() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    return isConnected && _validDepositTokenAmount() && dscToMint.value > 0;
+}
+
+function updateDepositAndMintButton() {
+    const notBusy = !depositAndMintInProgress.value;
+    const btn = document.getElementById("btn-deposit-mint");
+    btn.disabled = !(canDepositAndMint() && notBusy);
+}
+
 collateralToDeposit.onChange(updateDepositOnlyButton);
 collateralToken.onChange(updateDepositOnlyButton);
 wallet.onChange(updateDepositOnlyButton);
 depositInProgress.onChange(updateDepositOnlyButton);
+
+dscToMint.onChange(updateMintOnlyButton);
+wallet.onChange(updateMintOnlyButton);
+mintInProgress.onChange(updateMintOnlyButton);
+
+collateralToDeposit.onChange(updateDepositAndMintButton);
+collateralToken.onChange(updateDepositAndMintButton);
+dscToMint.onChange(updateDepositAndMintButton);
+wallet.onChange(updateDepositAndMintButton);
+depositAndMintInProgress.onChange(updateDepositAndMintButton);
 
 wallet.onChange(state => {
     const btn = walletConnectionButton;
@@ -534,7 +680,7 @@ userHealthFactor.onChange(value => {
 	text = "--";
 	state = "unknown";
     } else {
-	const max_uint256 = BigInt(2**256) - 1n;
+	const max_uint256 = (2n ** 256n) - 1n;
 	if (value === max_uint256)
 	    // 2 ** 256 implies no debt (infinite health)
 	    text = "OK";
