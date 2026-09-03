@@ -28,6 +28,9 @@ const EVENT_NAME_LIST = [
     "MintDsc",
     "MintSucceeded",
     "MintFailed",
+    "BurnDsc",
+    "BurnSucceeded",
+    "BurnFailed",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -92,6 +95,9 @@ const depositInProgress = createObservable(false);
 const dscToMint = createObservable(null);
 const mintInProgress = createObservable(false);
 const depositAndMintInProgress = createObservable(false);
+
+const dscToBurn = createObservable(null);
+const burnInProgress = createObservable(false);
 
 // Convert a human-readable amount (number or string) to wei as a BigInt.
 // Safely handles exponent notation from parseFloat by using toFixed.
@@ -273,6 +279,7 @@ function resetAppState() {
     mintInProgress.set(false);
     depositInProgress.set(false);
     depositAndMintInProgress.set(false);
+    burnInProgress.set(false);
 }
 
 async function loadAppState() {
@@ -384,6 +391,22 @@ const services = {
             depositAndMintInProgress.set(false);
         }
     },
+    burnDsc: async () => {
+        if (!canBurnDsc()) return;
+
+        try {
+            burnInProgress.set(true);
+            const amount = dscToBurn.value;
+            const amountInWei = toWei(amount, 18);
+            await burnDsc(amountInWei);
+            document.dispatchEvent(EVENTS.BurnSucceeded);
+        } catch (error) {
+            console.error(error);
+            document.dispatchEvent(EVENTS.BurnFailed);
+        } finally {
+            burnInProgress.set(false);
+        }
+    },
 }
 
 
@@ -440,6 +463,16 @@ on(EVENTS.MintFailed, () => {
     showStatus("Something went wrong. Please try again.", "error");
 });
 
+on(EVENTS.BurnDsc, services.burnDsc);
+on(EVENTS.BurnSucceeded, () => {
+    document.getElementById("burn-dsc-amount").value = "";
+    dscToBurn.set(0);
+    document.dispatchEvent(EVENTS.LoadAppState);
+});
+on(EVENTS.BurnFailed, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
+
 
 // Connection button listeners
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
@@ -456,6 +489,11 @@ mintOnlyButton.addEventListener("click", () => {
 const depositAndMintButton = document.getElementById("btn-deposit-mint");
 depositAndMintButton.addEventListener("click", () => {
     document.dispatchEvent(EVENTS.DepositAndMint);
+});
+
+const burnOnlyButton = document.getElementById("btn-burn-only");
+burnOnlyButton.addEventListener("click", () => {
+    document.dispatchEvent(EVENTS.BurnDsc);
 });
 
 // collateral token bindings
@@ -479,6 +517,12 @@ const dscAmountInput = document.getElementById("dsc-amount");
 dscToMint.set(parseFloat(dscAmountInput.value) || 0);
 dscAmountInput.addEventListener("change", () => {
     dscToMint.set(parseFloat(dscAmountInput.value) || 0);
+});
+
+const burnDscAmountInput = document.getElementById("burn-dsc-amount");
+dscToBurn.set(parseFloat(burnDscAmountInput.value) || 0);
+burnDscAmountInput.addEventListener("change", () => {
+    dscToBurn.set(parseFloat(burnDscAmountInput.value) || 0);
 });
 
 const mintMaxLink = document.getElementById("mint-max-link");
@@ -634,6 +678,33 @@ function updateDepositAndMintButton() {
     btn.disabled = !(canDepositAndMint() && notBusy);
 }
 
+function canBurnDsc() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    const amount = dscToBurn.value;
+    if (!isConnected || !amount || amount <= 0) return false;
+
+    // Convert to wei for precise comparisons
+    const amountInWei = toWei(amount, 18);
+    const balance = dscBalance.value;
+    const debt = totalDscMinted.value;
+
+    // If data hasn't loaded yet, optimistically allow
+    if (balance === null || debt === null) return true;
+
+    // Must not exceed wallet balance
+    if (amountInWei > balance) return false;
+    // Must not exceed current debt
+    if (amountInWei > debt) return false;
+
+    return true;
+}
+
+function updateBurnOnlyButton() {
+    const notBusy = !burnInProgress.value;
+    const btn = document.getElementById("btn-burn-only");
+    btn.disabled = !(canBurnDsc() && notBusy);
+}
+
 collateralToDeposit.onChange(updateDepositOnlyButton);
 collateralToken.onChange(updateDepositOnlyButton);
 wallet.onChange(updateDepositOnlyButton);
@@ -648,6 +719,12 @@ collateralToken.onChange(updateDepositAndMintButton);
 dscToMint.onChange(updateDepositAndMintButton);
 wallet.onChange(updateDepositAndMintButton);
 depositAndMintInProgress.onChange(updateDepositAndMintButton);
+
+dscToBurn.onChange(updateBurnOnlyButton);
+dscBalance.onChange(updateBurnOnlyButton);
+totalDscMinted.onChange(updateBurnOnlyButton);
+wallet.onChange(updateBurnOnlyButton);
+burnInProgress.onChange(updateBurnOnlyButton);
 
 wallet.onChange(state => {
     const btn = walletConnectionButton;

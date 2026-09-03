@@ -138,3 +138,13 @@ async function depositCollateralAndMintDsc(tokenName, collateralAmount, dscAmoun
     const tx = await engine.depositCollateralAndMintDsc(config.address, collateralAmount, dscAmount);
     await tx.wait();
 }
+
+// Burn DSC (repay debt)
+async function burnDsc(amount) {
+    const engine = await getDscEngineWrite();
+    const dscToken = new ethers.Contract(DSC_ADDRESS, DSC_ABI, await getSigner());
+    const txApprove = await dscToken.approve(DSC_ENGINE_ADDRESS, amount);
+    await txApprove.wait();
+    const tx = await engine.burnDsc(amount);
+    await tx.wait();
+}
