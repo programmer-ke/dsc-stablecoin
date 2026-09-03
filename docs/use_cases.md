@@ -1,3 +1,75 @@
+## Use Case: Connected User Burns DSC (Repays Debt)
+
+**Actor:**  
+A user who has connected their wallet on Sepolia, has a non-zero DSC
+debt, and holds enough DSC in their wallet to cover the repayment.
+
+**Preconditions:**  
+- Wallet is connected (`ConnectionState.CONNECTED`)
+- User is on Sepolia (`0xaa36a7`)
+- The `DSCEngine` and `DecentralizedStableCoin` contract ABIs and
+  addresses are available
+- An `ethers.BrowserProvider` and `Signer` have been instantiated
+- The user has a non-zero DSC debt (`totalDscMinted > 0`)
+- The user has a DSC wallet balance ≥ the amount they wish to burn
+- After burning, the user’s health factor remains ≥
+  `MIN_HEALTH_FACTOR` (or improves)
+
+**Trigger:**  
+The user enters an amount of DSC to burn and clicks **Burn Only**.
+
+**Flow:**
+
+1. The dApp reads the burn amount from the form.
+2. It validates that the amount is > 0 and does not exceed the user’s
+   DSC wallet balance.
+3. Optionally, it shows a health factor preview for the repayment.
+4. The dApp calls `approve(DSC_ENGINE_ADDRESS, burnAmount)` on the DSC
+   token contract.
+5. After the approval is confirmed, the dApp calls:
+   ```solidity
+   DSCEngine.burnDsc(burnAmount)
+   ```
+6. The user confirms the transaction in their wallet.
+7. Upon success, the dApp re-fetches state via `loadAppState()` or a
+   targeted refresh.
+8. The UI updates:
+   - Total DSC debt (`#total-dsc-debt`) decreases by the burned amount
+   - DSC wallet balance decreases by the burned amount
+   - Health factor improves (increases) if collateral value remains
+     unchanged
+
+**Postconditions:**  
+- The user’s DSC debt in the `DSCEngine` is reduced by the burned
+  amount
+- The burned DSC tokens are destroyed
+- The dashboard reflects the updated debt, health factor, and DSC
+  balance
+
+**Edge Cases to Consider:**  
+- **Insufficient DSC balance** → dApp disables the button or shows
+  “Insufficient DSC balance”
+- **Burn amount is zero** → button is disabled; contract reverts with
+  `DSCEngine__NeedsMoreThanZero`
+- **Health factor already broken** → burning may still leave health
+  factor below `MIN_HEALTH_FACTOR`, causing
+  `DSCEngine__BreaksHealthFactor` revert; dApp should warn or disable
+- **User rejects approval** → dApp stops, displays “Approval
+  cancelled”, and does not call `burnDsc`
+- **User rejects the burn transaction** → dApp displays “Transaction
+  cancelled”, form remains filled
+- **Approval succeeds but burn fails** → dApp shows failure message;
+  user may not need to re-approve if allowance remains
+- **Network error during approval or burn** → dApp catches the error,
+  shows a network error message, and allows retry
+
+**Implementation Note:**  
+The supplied `ui/global.js` currently has a **Burn Only** button
+(`#btn-burn-only`) but no handler or service function for it, and
+`ui/contract_interaction.js` does not yet expose a wrapper for
+`burnDsc`. This use case describes the intended behavior for that
+missing functionality.
+
 ## Use Case: Connected User Deposits Collateral and Mints DSC in One Step
 
 **Actor:**  
