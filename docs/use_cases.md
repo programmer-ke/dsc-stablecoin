@@ -1,3 +1,89 @@
+## Use Case: Connected User Deposits Collateral and Mints DSC in One Step
+
+**Actor:**  
+A user who has connected their wallet on Sepolia, has a non-zero
+balance of WETH or WBTC, and wants to deposit collateral and borrow
+DSC in a single action.
+
+**Preconditions:**  
+- Wallet is connected (`ConnectionState.CONNECTED`)
+- User is on Sepolia (`0xaa36a7`)
+- The `DSCEngine`, `DecentralizedStableCoin`, WETH, and WBTC contract
+  ABIs and addresses are available
+- An `ethers.BrowserProvider` and `Signer` have been instantiated
+- The user has a non-zero wallet balance of the selected collateral
+  token
+- The deposit and mint amounts are greater than 0
+- After the combined action, the user’s projected health factor
+  remains ≥ `MIN_HEALTH_FACTOR`
+
+**Trigger:**  
+The user selects a collateral token, enters a deposit amount and a DSC
+mint amount, then clicks **Deposit & Mint**.
+
+**Flow:**
+
+1. The dApp reads the selected token address, collateral amount, and
+   DSC amount from the form.
+2. It validates that both amounts are > 0.
+3. It checks that the collateral amount does not exceed the user’s
+   wallet balance.
+4. Optionally, it shows a health factor preview for the combined
+   action using `calculateHealthFactor` or equivalent logic.
+5. The dApp calls `approve(DSC_ENGINE_ADDRESS, collateralAmount)` on
+   the selected collateral token.
+6. After the approval is confirmed, the dApp calls:
+   ```solidity
+   DSCEngine.depositCollateralAndMintDsc(
+       tokenAddress,
+       collateralAmount,
+       dscAmountToMint
+   )
+   ```
+7. The user confirms the combined transaction in their wallet.
+8. Upon success, the dApp re-fetches state via `loadAppState()` or a
+   targeted refresh.
+9. The UI updates:
+   - Wallet balance for the deposited token decreases
+   - Collateral breakdown table shows the new deposited balance and
+     USD value
+   - Total DSC debt increases by the minted amount
+   - DSC wallet balance increases by the minted amount
+   - Health factor is recalculated
+
+**Postconditions:**  
+- The collateral is locked in the `DSCEngine`
+- New DSC is minted to the user’s wallet
+- The user’s debt increases by the minted amount
+- The dashboard reflects the updated position
+
+**Edge Cases to Consider:**  
+- **Combined transaction would break health factor** → contract
+  reverts with `DSCEngine__BreaksHealthFactor`; dApp should show a
+  descriptive error and keep the form intact
+- **Insufficient collateral balance** → dApp disables the button or
+  shows “Insufficient balance”
+- **User rejects approval** → dApp stops, displays “Approval
+  cancelled”, and does not call the combined deposit/mint
+- **User rejects the combined transaction** → dApp displays
+  “Transaction cancelled”, form remains filled
+- **Zero deposit or mint amount** → button is disabled; contract
+  reverts with `DSCEngine__NeedsMoreThanZero`
+- **Token not allowed** → contract reverts with
+  `DSCEngine__TokenNotAllowed`
+- **Network error during approval or combined transaction** → dApp
+  catches the error, shows a network error message, and allows retry
+- **Approval succeeds but combined transaction fails** → dApp shows
+  failure message; the user may not need to re-approve if allowance
+  remains
+
+**Implementation Note:**  
+The supplied `ui/global.js` currently has a **Deposit & Mint** button
+(`#btn-deposit-mint`) but no handler or service function for it, and
+`ui/contract_interaction.js` does not yet expose a wrapper for
+`depositCollateralAndMintDsc`. This use case describes the intended
+behavior for that missing functionality.
+
 ## Use Case: Connected User Mints DSC
 
 **Actor:** A user who has connected their wallet on the supported

@@ -1,5 +1,196 @@
 # todo
 
+### User Story: Deposit & Mint DSC (Happy Path)
+As a connected user with WETH or WBTC, I want to deposit collateral
+and mint DSC in a single transaction so that I can borrow against my
+collateral with fewer steps.
+
+**Acceptance Criteria:**
+- The user selects a token, enters a collateral amount > 0 and a DSC
+  mint amount > 0
+- The dApp validates both amounts are valid (not exceeding balance,
+  not zero)
+- Clicking **Deposit & Mint** triggers `approve` then
+  `depositCollateralAndMintDsc`
+- After the combined transaction confirms, the dashboard refreshes:
+  - Wallet balance decreases
+  - Collateral breakdown table updates with new deposited balance and
+    USD value
+  - Total DSC debt increases by the minted amount
+  - DSC wallet balance increases by the minted amount
+  - Health factor updates accordingly
+
+**Scenarios:**
+- **Scenario 1: Successful deposit and mint**
+  - Given the user has 2 WETH and no existing deposits
+  - When they deposit 1 WETH and mint 100 DSC
+  - Then the wallet balance shows 1 WETH, collateral table shows 1
+    WETH deposited, debt increases by 100 DSC, DSC balance increases
+    by 100, and health factor updates
+
+- **Scenario 2: Deposit and mint when already having collateral and
+  debt**
+  - Given the user has 1 WETH deposited, 500 DSC debt, and 2 WETH in
+    wallet
+  - When they deposit another 0.5 WETH and mint 200 DSC
+  - Then the deposited balance becomes 1.5 WETH, wallet balance
+    becomes 1.5 WETH, debt becomes 700 DSC
+
+---
+
+### User Story: Prevent Deposit & Mint with Insufficient Balance
+As a user, I want the dApp to prevent me from attempting a deposit and mint that exceeds my wallet balance, so I don't waste gas on a failing transaction.
+
+**Acceptance Criteria:**
+- The **Deposit & Mint** button is disabled when the entered collateral amount > wallet balance
+- A warning message is shown (e.g., "Insufficient balance")
+
+**Scenarios:**
+- **Scenario 1: Amount exceeds balance**
+  - Given the user has 1 WETH
+  - When they enter 2 WETH in the collateral amount field
+  - Then the **Deposit & Mint** button is disabled and a warning is displayed
+
+- **Scenario 2: Amount equals balance (valid)**
+  - Given the user has 1 WETH
+  - When they enter 1 WETH and a positive mint amount
+  - Then the **Deposit & Mint** button is enabled
+
+---
+
+### User Story: Prevent Deposit & Mint with Zero Amounts
+As a user, I want the dApp to prevent me from depositing 0 collateral or minting 0 DSC, so I don't waste gas on a meaningless transaction.
+
+**Acceptance Criteria:**
+- The **Deposit & Mint** button is disabled when either the collateral amount or the DSC mint amount is 0 or empty
+- Optionally, a validation message is shown
+
+**Scenarios:**
+- **Scenario 1: Collateral amount is 0**
+  - Given the user enters 0 in the collateral amount field and a positive DSC amount
+  - Then the **Deposit & Mint** button is disabled
+
+- **Scenario 2: DSC amount is 0**
+  - Given the user enters a positive collateral amount and 0 in the DSC amount field
+  - Then the **Deposit & Mint** button is disabled
+
+- **Scenario 3: Both fields are empty**
+  - Given both the collateral and DSC amount fields are blank
+  - Then the **Deposit & Mint** button is disabled
+
+---
+
+### User Story: Warn When Deposit & Mint Would Break Health Factor
+As a user, I want to be warned before depositing and minting if the combined action would cause my health factor to drop below the minimum, so that I can avoid a failed transaction.
+
+**Acceptance Criteria:**
+- The dApp calculates the projected health factor after the combined deposit and mint (using `calculateHealthFactor`)
+- If the projected health factor < `MIN_HEALTH_FACTOR`, a warning is shown
+- The warning message explains that the combined action would break the health factor
+
+**Scenarios:**
+- **Scenario 1: Combined action would break health factor**
+  - Given the user has a health factor of 1.2
+  - When they enter deposit and mint amounts that would drop the health factor below 1
+  - Then a warning is displayed
+
+- **Scenario 2: Combined action is safe**
+  - Given the user has a health factor of 2.0
+  - When they enter amounts that keep the health factor ≥ 1
+  - Then no warning is shown
+
+---
+
+### User Story: Handle User Rejection of Approval in Deposit & Mint
+As a user, if I reject the token approval transaction during the deposit and mint flow, I expect the dApp to cancel the entire flow gracefully and show a clear message.
+
+**Acceptance Criteria:**
+- When the user rejects the `approve` transaction in their wallet, the dApp catches the error
+- The combined deposit and mint does not proceed
+- A status message is shown (e.g., "Approval cancelled")
+- The UI remains in a consistent state (no partial updates)
+
+**Scenarios:**
+- **Scenario 1: User rejects approval**
+  - Given the user clicks **Deposit & Mint**
+  - When the MetaMask approval prompt appears and the user clicks "Reject"
+  - Then the dApp shows "Approval cancelled" and does not call `depositCollateralAndMintDsc`
+
+---
+
+### User Story: Handle User Rejection of Combined Transaction
+As a user, if I approve the token but reject the combined deposit and mint transaction, I expect the dApp to stop and inform me, without leaving the UI in a broken state.
+
+**Acceptance Criteria:**
+- After successful approval, if the user rejects the `depositCollateralAndMintDsc` transaction, the dApp catches the error
+- A status message is shown (e.g., "Transaction cancelled")
+- The form remains filled
+
+**Scenarios:**
+- **Scenario 1: User rejects combined transaction after approving**
+  - Given the user approved the token spend
+  - When the combined transaction confirmation appears and the user rejects it
+  - Then the dApp shows "Transaction cancelled" and the form remains filled
+
+---
+
+### User Story: Handle On-Chain Failure of Deposit & Mint
+As a user, if the combined deposit and mint transaction fails on-chain, I want to see a descriptive error message and understand what happened.
+
+**Acceptance Criteria:**
+- If `depositCollateralAndMintDsc` reverts (e.g., `DSCEngine__BreaksHealthFactor`, `DSCEngine__NeedsMoreThanZero`, or `DSCEngine__TokenNotAllowed`), the dApp catches the error
+- A descriptive error message is shown (e.g., "Transaction failed: health factor too low")
+- The UI does not crash; the user can try again
+
+**Scenarios:**
+- **Scenario 1: Combined transaction reverts due to health factor**
+  - Given the user approved the token and the frontend check was bypassed
+  - When the combined transaction reverts with `DSCEngine__BreaksHealthFactor`
+  - Then the dApp displays the error reason and the form remains intact
+
+- **Scenario 2: Combined transaction reverts due to zero amount**
+  - Given the user approved the token
+  - When the combined transaction reverts with `DSCEngine__NeedsMoreThanZero`
+  - Then the dApp displays the error reason
+
+---
+
+### User Story: Handle Network Error During Deposit & Mint
+As a user, if a network error occurs while depositing and minting, I want to be informed so that I can retry later.
+
+**Acceptance Criteria:**
+- If the RPC call throws a network error (timeout, connection issue), the dApp catches it
+- A status message is shown (e.g., "Network error, please try again")
+- The form remains filled and the user can retry
+
+**Scenarios:**
+- **Scenario 1: Network error during approval**
+  - Given the user clicks **Deposit & Mint**
+  - When the approval RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again" and the form remains intact
+
+- **Scenario 2: Network error during combined transaction**
+  - Given the approval succeeded
+  - When the `depositCollateralAndMintDsc` RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again" and the form remains intact
+
+---
+
+### User Story: Refresh Dashboard After Deposit & Mint
+As a user, after a successful deposit and mint, I want the dashboard to automatically update all relevant data so I can see my new position without manual refresh.
+
+**Acceptance Criteria:**
+- After the combined transaction is confirmed, `loadAppState()` is triggered
+- Wallet balances, collateral breakdown, health factor, and total debt are refreshed
+- The updated values are displayed within a few seconds
+
+**Scenarios:**
+- **Scenario 1: Dashboard refreshes after deposit and mint**
+  - Given the user deposits 1 WETH and mints 100 DSC
+  - When the transaction is mined
+  - Then the wallet balance decreases, collateral table shows the new deposit, debt increases, DSC balance increases, and health factor updates
+
+---
 
 ## User Story: Inform User When No Collateral Deposited
 As a user with no collateral deposited, I want to be informed that I
