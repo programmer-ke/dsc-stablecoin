@@ -1,3 +1,80 @@
+## Use Case: Connected User Redeems Collateral Only
+
+**Actor:**  
+A user who has connected their wallet on Sepolia, has a non-zero
+deposited balance of WETH or WBTC, and wants to withdraw some
+collateral without repaying DSC.
+
+**Preconditions:**  
+- Wallet is connected (`ConnectionState.CONNECTED`)
+- User is on Sepolia (`0xaa36a7`)
+- The `DSCEngine` and collateral token contract ABIs and addresses are
+  available
+- An `ethers.BrowserProvider` and `Signer` have been instantiated
+- The user has a non-zero deposited balance of the selected collateral
+  token
+- The redemption amount is greater than 0
+- After redeeming, the user’s projected health factor remains ≥
+  `MIN_HEALTH_FACTOR`
+
+**Trigger:**  
+The user selects a collateral token, enters an amount, and clicks
+**Redeem Only**.
+
+**Flow:**
+
+1. The dApp reads the selected collateral token and redemption amount
+   from the form.
+2. It validates that the amount is > 0.
+3. It checks that the amount does not exceed the user’s deposited
+   balance for that token.
+4. Optionally, it shows a health factor preview for the redemption
+   using `calculateHealthFactor` or equivalent logic.
+5. The dApp calls:
+   ```solidity
+   DSCEngine.redeemCollateral(tokenAddress, amountCollateral)
+   ```
+6. The user confirms the transaction in their wallet.
+7. Upon success, the dApp re-fetches state via `loadAppState()` or a
+   targeted refresh.
+8. The UI updates:
+   - Wallet balance for the redeemed token increases by the redeemed
+     amount
+   - Collateral breakdown table shows the reduced deposited balance
+     and USD value
+   - Health factor is recalculated
+   - Total DSC debt remains unchanged
+
+**Postconditions:**  
+- The collateral is transferred from the `DSCEngine` back to the
+  user’s wallet
+- The user’s deposited balance for that token decreases
+- The dashboard reflects the updated collateral position and health
+  factor
+
+**Edge Cases to Consider:**  
+- **Redeeming zero amount** → button is disabled; contract reverts
+  with `DSCEngine__NeedsMoreThanZero`
+- **Redeeming more than deposited balance** → dApp disables the button
+  or shows “Insufficient deposited balance”
+- **Redemption would break health factor** → contract reverts with
+  `DSCEngine__BreaksHealthFactor`; dApp should warn or disable
+- **User rejects the transaction** → dApp shows “Transaction
+  cancelled”, form remains filled
+- **Token not allowed** → contract reverts with
+  `DSCEngine__TokenNotAllowed`
+- **Network error during redemption** → dApp catches the error, shows
+  a network error message, and allows retry
+- **Approval is not required** for redeeming collateral because the
+  engine transfers collateral back to the user
+
+**Implementation Note:**  
+The supplied `ui/global.js` currently has a **Redeem Only** button
+(`#btn-redeem-only`) but no handler or service function for it, and
+`ui/contract_interaction.js` does not yet expose a wrapper for
+`redeemCollateral`. This use case describes the intended behavior for
+that missing functionality.
+
 ## Use Case: Connected User Burns DSC (Repays Debt)
 
 **Actor:**  
