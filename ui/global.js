@@ -21,6 +21,9 @@ const EVENT_NAME_LIST = [
     "DepositCollateral",
     "DepositFailed",
     "DepositSucceeded",
+    "DepositAndMint",
+    "DepositAndMintSucceeded",
+    "DepositAndMintFailed",
     "ErrorUpdatingHealthFactorPreview",
     "MintDsc",
     "MintSucceeded",
@@ -88,6 +91,7 @@ const depositInProgress = createObservable(false);
 
 const dscToMint = createObservable(null);
 const mintInProgress = createObservable(false);
+const depositAndMintInProgress = createObservable(false);
 
 
 // handlers
@@ -263,6 +267,7 @@ function resetAppState() {
     collateralWbtcUsd.set(null);
     mintInProgress.set(false);
     depositInProgress.set(false);
+    depositAndMintInProgress.set(false);
 }
 
 async function loadAppState() {
@@ -356,6 +361,24 @@ const services = {
             mintInProgress.set(false);
         }
     },
+    depositAndMint: async () => {
+        if (!canDepositAndMint()) return;
+
+        try {
+            depositAndMintInProgress.set(true);
+            const tokenName = collateralToken.value;
+            const decimals = ERC20_CONFIG[tokenName].decimals;
+            const collateralInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+            const dscInWei = ethers.parseUnits(dscToMint.value.toString(), 18);
+            await depositCollateralAndMintDsc(tokenName, collateralInWei, dscInWei);
+            document.dispatchEvent(EVENTS.DepositAndMintSucceeded);
+        } catch (error) {
+            console.error(error);
+            document.dispatchEvent(EVENTS.DepositAndMintFailed);
+        } finally {
+            depositAndMintInProgress.set(false);
+        }
+    },
 }
 
 
@@ -390,6 +413,18 @@ on(EVENTS.DepositSucceeded, () => {
     document.dispatchEvent(EVENTS.LoadAppState);
 });
 
+on(EVENTS.DepositAndMint, services.depositAndMint);
+on(EVENTS.DepositAndMintSucceeded, () => {
+    collateralAmountInput.value = "";
+    dscAmountInput.value = "";
+    collateralToDeposit.set(0);
+    dscToMint.set(0);
+    document.dispatchEvent(EVENTS.LoadAppState);
+});
+on(EVENTS.DepositAndMintFailed, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
+
 on(EVENTS.MintDsc, services.mintDsc);
 on(EVENTS.MintSucceeded, () => {
     dscAmountInput.value = "";
@@ -411,6 +446,11 @@ depositOnlyButton.addEventListener("click", depositOnlyClickHandler);
 const mintOnlyButton = document.getElementById("btn-mint-only");
 mintOnlyButton.addEventListener("click", () => {
     document.dispatchEvent(EVENTS.MintDsc);
+});
+
+const depositAndMintButton = document.getElementById("btn-deposit-mint");
+depositAndMintButton.addEventListener("click", () => {
+    document.dispatchEvent(EVENTS.DepositAndMint);
 });
 
 // collateral token bindings
@@ -552,7 +592,7 @@ function _validDepositTokenAmount() {
 	if (amountInWei > tokenBalance) {
 	    return false;
 	} else {
-	    return true
+	    return true;
 	}
     }
 }
@@ -578,6 +618,17 @@ function updateMintOnlyButton() {
     mintOnlyButton.disabled = !(canMintDsc() && notBusy);
 }
 
+function canDepositAndMint() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    return isConnected && _validDepositTokenAmount() && dscToMint.value > 0;
+}
+
+function updateDepositAndMintButton() {
+    const notBusy = !depositAndMintInProgress.value;
+    const btn = document.getElementById("btn-deposit-mint");
+    btn.disabled = !(canDepositAndMint() && notBusy);
+}
+
 collateralToDeposit.onChange(updateDepositOnlyButton);
 collateralToken.onChange(updateDepositOnlyButton);
 wallet.onChange(updateDepositOnlyButton);
@@ -586,6 +637,12 @@ depositInProgress.onChange(updateDepositOnlyButton);
 dscToMint.onChange(updateMintOnlyButton);
 wallet.onChange(updateMintOnlyButton);
 mintInProgress.onChange(updateMintOnlyButton);
+
+collateralToDeposit.onChange(updateDepositAndMintButton);
+collateralToken.onChange(updateDepositAndMintButton);
+dscToMint.onChange(updateDepositAndMintButton);
+wallet.onChange(updateDepositAndMintButton);
+depositAndMintInProgress.onChange(updateDepositAndMintButton);
 
 wallet.onChange(state => {
     const btn = walletConnectionButton;
