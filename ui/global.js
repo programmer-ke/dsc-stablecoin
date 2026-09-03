@@ -93,6 +93,11 @@ const dscToMint = createObservable(null);
 const mintInProgress = createObservable(false);
 const depositAndMintInProgress = createObservable(false);
 
+// Convert a human-readable amount (number or string) to wei as a BigInt.
+// Safely handles exponent notation from parseFloat by using toFixed.
+function toWei(amount, decimals) {
+    return ethers.parseUnits(parseFloat(amount).toFixed(decimals), decimals);
+}
 
 // handlers
 async function switchToSupportedNetwork() {
@@ -335,7 +340,7 @@ const services = {
 	    depositInProgress.set(true);
 	    const tokenName = collateralToken.value;
 	    const decimals = ERC20_CONFIG[tokenName].decimals;
-	    const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+	    const amountInWei = toWei(collateralToDeposit.value, decimals);
 	    await depositCollateral(tokenName, amountInWei);
 	    document.dispatchEvent(EVENTS.DepositSucceeded);
 	} catch (error) {
@@ -351,7 +356,7 @@ const services = {
         try {
             mintInProgress.set(true);
             const amount = dscToMint.value;
-            const amountInWei = ethers.parseUnits(amount.toString(), 18);
+            const amountInWei = toWei(amount, 18);
             await mintDsc(amountInWei);
             document.dispatchEvent(EVENTS.MintSucceeded);
         } catch (error) {
@@ -368,8 +373,8 @@ const services = {
             depositAndMintInProgress.set(true);
             const tokenName = collateralToken.value;
             const decimals = ERC20_CONFIG[tokenName].decimals;
-            const collateralInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
-            const dscInWei = ethers.parseUnits(dscToMint.value.toString(), 18);
+            const collateralInWei = toWei(collateralToDeposit.value, decimals);
+            const dscInWei = toWei(dscToMint.value, 18);
             await depositCollateralAndMintDsc(tokenName, collateralInWei, dscInWei);
             document.dispatchEvent(EVENTS.DepositAndMintSucceeded);
         } catch (error) {
@@ -526,7 +531,7 @@ if (refreshDepositMintHfPreviewLink) {
                 const tokenName = collateralToken.value;
                 const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
                 const decimals = ERC20_CONFIG[tokenName].decimals;
-                const amountInWei = ethers.parseUnits(depositAmount.toString(), decimals);
+                const amountInWei = toWei(depositAmount, decimals);
                 depositUsd = await fetchUsdValue(tokenAddress, amountInWei);
             }
 
@@ -538,7 +543,7 @@ if (refreshDepositMintHfPreviewLink) {
             const existingDebt = totalDscMinted.value ?? 0n;
             let newDebt = existingDebt;
             if (mintAmount && mintAmount > 0) {
-                const mintAmountInWei = ethers.parseUnits(mintAmount.toString(), 18);
+                const mintAmountInWei = toWei(mintAmount, 18);
                 newDebt = existingDebt + mintAmountInWei;
             }
 
@@ -587,7 +592,7 @@ function _validDepositTokenAmount() {
 	}
 
 	const decimals = ERC20_CONFIG[tokenName].decimals;
-	const amountInWei = ethers.parseUnits(collateralToDeposit.value.toString(), decimals);
+	const amountInWei = toWei(collateralToDeposit.value, decimals);
 
 	if (amountInWei > tokenBalance) {
 	    return false;
