@@ -1,3 +1,104 @@
+## Use Case: Connected User Burns DSC and Redeems Collateral in One Step
+
+**Actor:**  
+A user who has connected their wallet on Sepolia, has a non-zero DSC
+debt, holds enough DSC in their wallet to cover the repayment, and has
+deposited collateral they wish to withdraw.
+
+**Preconditions:**  
+- Wallet is connected (`ConnectionState.CONNECTED`)
+- User is on Sepolia (`0xaa36a7`)
+- The `DSCEngine`, `DecentralizedStableCoin`, WETH, and WBTC contract
+  ABIs and addresses are available
+- An `ethers.BrowserProvider` and `Signer` have been instantiated
+- The user has a non-zero DSC debt (`totalDscMinted > 0`)
+- The user has a DSC wallet balance ≥ the amount they wish to burn
+- The user has a non-zero deposited balance of the selected collateral
+  token
+- The burn amount and redeem amount are both greater than 0
+- After both actions, the user’s projected health factor remains ≥
+  `MIN_HEALTH_FACTOR`
+
+**Trigger:**  
+The user selects a collateral token, enters a DSC burn amount and a
+collateral redeem amount, then clicks **Burn & Redeem**.
+
+**Flow:**
+
+1. The dApp reads the burn amount and redeem amount from the form.
+2. It validates that both amounts are > 0.
+3. It checks that the burn amount does not exceed the user’s DSC
+   wallet balance or total DSC debt.
+4. It checks that the redeem amount does not exceed the user’s
+   deposited balance for the selected token.
+5. Optionally, it shows a health factor preview for the combined
+   action using `calculateHealthFactor` or equivalent logic.
+6. The dApp calls `approve(DSC_ENGINE_ADDRESS, burnAmount)` on the DSC
+   token contract.
+7. After the approval is confirmed, the dApp calls:
+   ```solidity
+   DSCEngine.burnDsc(burnAmount)
+   ```
+8. The user confirms the burn transaction in their wallet.
+9. Upon successful burn, the dApp then calls: ```solidity
+   DSCEngine.redeemCollateral(tokenAddress, redeemAmount) ``` (No
+   additional approval is needed for redemption.)
+10. The user confirms the redeem transaction in their wallet.
+11. Upon success of both transactions, the dApp re-fetches state via
+    `loadAppState()` or a targeted refresh.
+12. The UI updates:
+    - Total DSC debt decreases by the burned amount
+    - DSC wallet balance decreases by the burned amount
+    - Wallet balance for the redeemed token increases by the redeemed
+      amount
+    - Collateral breakdown table shows the reduced deposited balance
+      and USD value
+    - Health factor is recalculated
+
+**Postconditions:**  
+- The user’s DSC debt is reduced by the burned amount
+- The burned DSC tokens are destroyed
+- The redeemed collateral is transferred from the `DSCEngine` back to
+  the user’s wallet
+- The dashboard reflects the updated debt, collateral position, and
+  health factor
+
+**Edge Cases to Consider:**  
+- **Burn amount is zero** → button is disabled; contract reverts with
+  `DSCEngine__NeedsMoreThanZero`
+- **Redeem amount is zero** → button is disabled; contract reverts
+  with `DSCEngine__NeedsMoreThanZero`
+- **Insufficient DSC balance** → dApp disables the button or shows
+  “Insufficient DSC balance”
+- **Burn amount exceeds debt** → dApp disables the button or shows
+  “Amount exceeds debt”
+- **Redeem amount exceeds deposited balance** → dApp disables the
+  button or shows “Insufficient deposited balance”
+- **Combined action would break health factor** → contract reverts
+  with `DSCEngine__BreaksHealthFactor` on either burn or redeem; dApp
+  should warn or disable
+- **User rejects approval** → dApp stops, displays “Approval
+  cancelled”, and does not proceed
+- **User rejects burn transaction** → dApp displays “Transaction
+  cancelled”, form remains filled, redeem is not attempted
+- **Burn succeeds but redeem fails** → dApp shows failure message for
+  redeem; the burn has already reduced debt, so the user may need to
+  retry the redeem separately. The dApp should refresh state and allow
+  the user to attempt the redeem again.
+- **Network error during any step** → dApp catches the error, shows a
+  network error message, and allows retry from the failed step
+- **Token not allowed for redeem** → contract reverts with
+  `DSCEngine__TokenNotAllowed`
+
+**Implementation Note:**  
+The supplied `ui/global.js` currently has a **Burn & Redeem** button
+(`#btn-burn-redeem`) but no handler or service function for it, and
+`ui/contract_interaction.js` does not yet expose a combined
+wrapper. This use case describes the intended behavior for that
+missing functionality. The implementation will need to orchestrate two
+sequential transactions (approve + burn, then redeem) and handle
+partial failures gracefully.
+
 ## Use Case: Connected User Redeems Collateral Only
 
 **Actor:**  
