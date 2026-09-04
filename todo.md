@@ -1,5 +1,96 @@
 # todo
 
+## User Story: Check Position Health (Happy Path)
+As a connected user, I want to enter a target address and check their
+position health so that I can determine if they are eligible for
+liquidation.
+
+**Acceptance Criteria:**
+- The user enters a valid Ethereum address into the "User Address"
+  input field.
+- Clicking the **Check** button fetches the target's health factor,
+  total collateral value, and total DSC debt.
+- The "Position Summary" card updates to display these values.
+- If the health factor is ≥ 1, the "Liquidation Form" remains hidden,
+  and a status message indicates the position is healthy.
+
+**Scenarios:**
+- **Scenario 1: Checking a healthy position**
+  - Given the user enters a valid address with a health factor of 2.0
+  - When they click **Check**
+  - Then the Position Summary displays HF: 2.0, Collateral: [value],
+    Debt: [value]
+  - And the Liquidation Form remains hidden
+  - And a status message says "Position is healthy"
+
+- **Scenario 2: Checking an undercollateralized position**
+  - Given the user enters a valid address with a health factor of 0.8
+  - When they click **Check**
+  - Then the Position Summary displays HF: 0.8 (with warning state),
+    Collateral: [value], Debt: [value]
+  - And the Liquidation Form becomes visible
+  - And the "Total debt" span is populated with the user's debt
+
+---
+
+## User Story: Prevent Checking with Invalid Address
+As a user, I want to be prevented from checking an invalid address so
+that I don't trigger unnecessary contract calls.
+
+**Acceptance Criteria:**
+- The **Check** button is disabled or shows an error if the entered
+  address is not a valid Ethereum address (e.g., not 42 characters,
+  doesn't start with 0x).
+
+**Scenarios:**
+- **Scenario 1: Invalid address format**
+  - Given the user enters "0x123" into the User Address field
+  - When they click **Check**
+  - Then the dApp shows an error message "Invalid address"
+  - And no contract calls are made
+
+---
+
+## User Story: Handle Address with No Position
+As a user, I want to see a clear message if the checked address has no
+position, so I know they cannot be liquidated.
+
+**Acceptance Criteria:**
+- If the checked address has no collateral and no debt, the health
+  factor returns max uint256.
+- The UI displays "∞" or "N/A" for the health factor.
+- Collateral and Debt display "0.00".
+- The Liquidation Form remains hidden.
+
+**Scenarios:**
+- **Scenario 1: Fresh account**
+  - Given the user enters a valid address that has never interacted
+    with the protocol
+  - When they click **Check**
+  - Then the Position Summary displays HF: ∞, Collateral: 0.00, Debt:
+    0.00
+  - And the Liquidation Form remains hidden
+
+---
+
+## User Story: Handle Network Error During Check
+As a user, if a network error occurs while checking a position, I want
+to be informed so I can retry.
+
+**Acceptance Criteria:**
+- If the RPC calls to fetch health factor or account information fail,
+  the dApp catches the error.
+- A status message is shown (e.g., "Network error, please try again").
+- The Position Summary resets to `--`.
+
+**Scenarios:**
+- **Scenario 1: RPC fails**
+  - Given the user enters a valid address and clicks **Check**
+  - When the `getHealthFactor` or `getAccountInformation` RPC call
+    fails
+  - Then the dApp shows "Network error, please try again"
+  - And the Position Summary fields show `--`
+
 ## User Story: Inform User When No Collateral Deposited
 As a user with no collateral deposited, I want to be informed that I
 cannot mint DSC so that I understand why the feature is unavailable.

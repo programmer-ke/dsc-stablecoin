@@ -1,3 +1,60 @@
+## Use Case: Connected User Finds Undercollateralized Positions
+
+**Actor:**  
+A user who has connected their wallet on the supported Sepolia network
+and wants to find undercollateralized positions to liquidate for
+profit.
+
+**Preconditions:**  
+- Wallet is connected (`ConnectionState.CONNECTED`)
+- User is on the supported chain (`0xaa36a7`)
+- The `DSCEngine` contract ABI and address are available in the
+  frontend
+- An `ethers.BrowserProvider` and `Signer` have been instantiated
+
+**Trigger:**  
+The user enters a target address into the "User Address" input field
+and clicks the **Check** button.
+
+**Flow:**
+
+1. The dApp reads the target address from the input field.
+2. It validates that the address is a valid Ethereum address.
+3. The dApp calls `DSCEngine.getHealthFactor(targetAddress)`.
+4. The dApp calls `DSCEngine.getAccountInformation(targetAddress)` to
+   get the total collateral value and total DSC debt.
+5. The UI updates the "Position Summary" card:
+   - **Health Factor** (`#liquidation-hf`) displays the value, with a
+     warning state if < 1.
+   - **Total Collateral (USD)** (`#liquidation-collateral-value`)
+     displays the collateral value.
+   - **Total DSC Debt** (`#liquidation-debt`) displays the debt.
+6. If the health factor is < 1 (undercollateralized):
+   - The "Liquidation Form" becomes visible.
+   - The "Total debt" span (`#liquidation-total-debt`) is populated
+     with the user's debt.
+   - The "Liquidate" button is enabled (once a valid debt-to-cover
+     amount is entered).
+7. If the health factor is ≥ 1 (healthy):
+   - The "Liquidation Form" remains hidden.
+   - A status message indicates the position is healthy.
+
+**Postconditions:**
+- The user can see the target address's position health at a glance.
+- If the position is undercollateralized, the user is presented with
+  the liquidation form to proceed with a liquidation.
+
+**Edge Cases to Consider:**
+- **Invalid address format:** The dApp shows an error message and does
+  not make the contract calls.
+- **Address has no position:** Health factor returns max uint256,
+  collateral and debt are 0. The UI displays "∞" or "N/A" for health
+  factor and "0.00" for values. The liquidation form remains hidden.
+- **Network error:** The dApp catches the error, shows a network error
+  message, and resets the position summary to `--`.
+- **Health factor is exactly 1:** The position is considered healthy
+  (not liquidatable). The liquidation form remains hidden.
+
 ## Use Case: Connected User Burns DSC and Redeems Collateral in One Step
 
 **Actor:**  
