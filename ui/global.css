@@ -22,6 +22,7 @@ dashboard-number {
     text-overflow: ellipsis;
 }
 
+#burn-redeem-preview-new-hf[data-state="safe"],
 #deposit-mint-preview-new-hf[data-state="safe"],
 dashboard-number.health-factor[data-state="safe"] {
     color: #2e7d32; /* green */
@@ -31,6 +32,7 @@ dashboard-number.health-factor[data-state="warning"] {
     color: #f57c00; /* orange */
 }
 
+#burn-redeem-preview-new-hf[data-state="alert"],
 #deposit-mint-preview-new-hf[data-state="alert"],
 dashboard-number.health-factor[data-state="alert"] {
     color: #c62828; /* red */
