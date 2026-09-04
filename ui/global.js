@@ -34,6 +34,9 @@ const EVENT_NAME_LIST = [
     "RedeemCollateral",
     "RedeemSucceeded",
     "RedeemFailed",
+    "BurnAndRedeem",
+    "BurnAndRedeemSucceeded",
+    "BurnAndRedeemFailed",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -106,13 +109,15 @@ const redeemToken = createObservable(null);
 const collateralToRedeem = createObservable("0");
 const redeemInProgress = createObservable(false);
 
+const burnAndRedeemInProgress = createObservable(false);
+
 // Convert a human-readable amount (number or string) to wei as a BigInt.
 // Safely handles exponent notation from parseFloat by using toFixed.
 function toWei(amount, decimals) {
     return ethers.parseUnits(amount, decimals);
 }
 
-function coerceAmountString(rawInput) {
+function coerce(rawInput) {
     if (typeof rawInput !== "string") return "0";
     const input = rawInput.trim();
 
@@ -301,6 +306,7 @@ function resetAppState() {
     depositAndMintInProgress.set(false);
     burnInProgress.set(false);
     redeemInProgress.set(false);
+    burnAndRedeemInProgress.set(false);
 }
 
 async function loadAppState() {
@@ -445,6 +451,24 @@ const services = {
             redeemInProgress.set(false);
         }
     },
+    burnAndRedeem: async () => {
+        if (!canBurnAndRedeem()) return;
+
+        try {
+            burnAndRedeemInProgress.set(true);
+            const tokenName = redeemToken.value;
+            const decimals = ERC20_CONFIG[tokenName].decimals;
+            const burnAmountWei = toWei(dscToBurn.value, 18);
+            const redeemAmountWei = toWei(collateralToRedeem.value, decimals);
+            await burnAndRedeemCollateral(tokenName, burnAmountWei, redeemAmountWei);
+            document.dispatchEvent(EVENTS.BurnAndRedeemSucceeded);
+        } catch (error) {
+            console.error(error);
+            document.dispatchEvent(EVENTS.BurnAndRedeemFailed);
+        } finally {
+            burnAndRedeemInProgress.set(false);
+        }
+    },
 }
 
 
@@ -521,6 +545,18 @@ on(EVENTS.RedeemFailed, () => {
     showStatus("Something went wrong. Please try again.", "error");
 });
 
+on(EVENTS.BurnAndRedeem, services.burnAndRedeem);
+on(EVENTS.BurnAndRedeemSucceeded, () => {
+    document.getElementById("burn-dsc-amount").value = "";
+    document.getElementById("redeem-collateral-amount").value = "";
+    dscToBurn.set("0");
+    collateralToRedeem.set("0");
+    document.dispatchEvent(EVENTS.LoadAppState);
+});
+on(EVENTS.BurnAndRedeemFailed, () => {
+    showStatus("Something went wrong. Please try again.", "error");
+});
+
 
 // Connection button listeners
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
@@ -549,6 +585,11 @@ redeemOnlyButton.addEventListener("click", () => {
     document.dispatchEvent(EVENTS.RedeemCollateral);
 });
 
+const burnAndRedeemButton = document.getElementById("btn-burn-redeem");
+burnAndRedeemButton.addEventListener("click", () => {
+    document.dispatchEvent(EVENTS.BurnAndRedeem);
+});
+
 // collateral token bindings
 function _collateralTokenAddress(selectValue) {
     return selectValue == "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
@@ -561,21 +602,21 @@ collateralTokenSelector.addEventListener("change", () => {
 
 
 const collateralAmountInput = document.getElementById("collateral-amount");
-collateralToDeposit.set(coerceAmountString(collateralAmountInput.value));
+collateralToDeposit.set(coerce(collateralAmountInput.value));
 collateralAmountInput.addEventListener("change", () => {
-    collateralToDeposit.set(coerceAmountString(collateralAmountInput.value));
+    collateralToDeposit.set(coerce(collateralAmountInput.value));
 });
 
 const dscAmountInput = document.getElementById("dsc-amount");
-dscToMint.set(coerceAmountString(dscAmountInput.value));
+dscToMint.set(coerce(dscAmountInput.value));
 dscAmountInput.addEventListener("change", () => {
-    dscToMint.set(coerceAmountString(dscAmountInput.value));
+    dscToMint.set(coerce(dscAmountInput.value));
 });
 
 const burnDscAmountInput = document.getElementById("burn-dsc-amount");
-dscToBurn.set(coerceAmountString(burnDscAmountInput.value));
+dscToBurn.set(coerce(burnDscAmountInput.value));
 burnDscAmountInput.addEventListener("change", () => {
-    dscToBurn.set(coerceAmountString(burnDscAmountInput.value));
+    dscToBurn.set(coerce(burnDscAmountInput.value));
 });
 
 const redeemTokenSelector = document.getElementById("redeem-token");
@@ -588,9 +629,9 @@ if (redeemTokenSelector) {
 
 const redeemCollateralInput = document.getElementById("redeem-collateral-amount");
 if (redeemCollateralInput) {
-    collateralToRedeem.set(coerceAmountString(redeemCollateralInput.value));
+    collateralToRedeem.set(coerce(redeemCollateralInput.value));
     redeemCollateralInput.addEventListener("change", () => {
-        collateralToRedeem.set(coerceAmountString(redeemCollateralInput.value));
+        collateralToRedeem.set(coerce(redeemCollateralInput.value));
     });
 }
 
@@ -670,14 +711,14 @@ if (refreshDepositMintHfPreviewLink) {
         const depositAmount = collateralToDeposit.value;
         const mintAmount = dscToMint.value;
 
-        if (depositAmount === "0" && mintAmount === "0") {
+        if (Number(depositAmount) <= 0 && Number(mintAmount) <= 0) {
             document.getElementById("deposit-mint-preview-new-hf").textContent = "--";
             return;
         }
 
         try {
             let depositUsd = 0n;
-            if (depositAmount !== "0") {
+            if (Number(depositAmount) > 0) {
                 const tokenName = collateralToken.value;
                 const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
                 const decimals = ERC20_CONFIG[tokenName].decimals;
@@ -691,7 +732,7 @@ if (refreshDepositMintHfPreviewLink) {
 
             const existingDebt = totalDscMinted.value ?? 0n;
             let newDebt = existingDebt;
-            if (mintAmount !== "0") {
+            if (Number(mintAmount) > 0) {
                 const mintAmountInWei = toWei(mintAmount, 18);
                 newDebt = existingDebt + mintAmountInWei;
             }
@@ -737,7 +778,7 @@ if (refreshBurnRedeemHfPreviewLink) {
         const existingDebt = totalDscMinted.value;
 
         // If neither burn nor redeem amount is entered, reset the preview
-        if (burnAmount === "0" && redeemAmount === "0") {
+        if (Number(burnAmount) <= 0 && Number(redeemAmount) <= 0) {
             document.getElementById("burn-redeem-preview-new-hf").textContent = "--";
             return;
         }
@@ -745,7 +786,7 @@ if (refreshBurnRedeemHfPreviewLink) {
         try {
             // --- Burn part: reduce debt ---
             let newDebt = existingDebt;
-            if (burnAmount !== "0") {
+            if (Number(burnAmount) > 0) {
                 const burnWei = toWei(burnAmount, 18);
 
                 if (existingDebt === null || burnWei > existingDebt) {
@@ -764,7 +805,7 @@ if (refreshBurnRedeemHfPreviewLink) {
 
             let newTotalCollateralUsd = currentTotalCollateralUsd;
 
-            if (redeemAmount !== "0") {
+            if (Number(redeemAmount) > 0) {
                 const tokenName = redeemToken.value;
                 const tokenAddress = tokenName === "weth" ? WETH_ADDRESS : WBTC_ADDRESS;
                 const decimals = ERC20_CONFIG[tokenName].decimals;
@@ -811,7 +852,7 @@ if (refreshBurnRedeemHfPreviewLink) {
 // state change listeners
 
 function _validDepositTokenAmount() {
-    if (collateralToDeposit.value === "0") {
+    if (Number(collateralToDeposit.value) <= 0) {
 	return false;
     } else if (collateralToken.value === null) {
 	return false;
@@ -846,8 +887,7 @@ function updateDepositOnlyButton() {
 
 function canMintDsc() {
     const isConnected = wallet.value === ConnectionState.CONNECTED;
-    const amount = dscToMint.value;
-    return isConnected && amount !== "0";
+    return isConnected && Number(dscToMint.value) > 0;
 }
 
 function updateMintOnlyButton() {
@@ -857,7 +897,7 @@ function updateMintOnlyButton() {
 
 function canDepositAndMint() {
     const isConnected = wallet.value === ConnectionState.CONNECTED;
-    return isConnected && _validDepositTokenAmount() && dscToMint.value !== "0";
+    return isConnected && _validDepositTokenAmount() && Number(dscToMint.value) > 0;
 }
 
 function updateDepositAndMintButton() {
@@ -868,10 +908,9 @@ function updateDepositAndMintButton() {
 
 function canBurnDsc() {
     const isConnected = wallet.value === ConnectionState.CONNECTED;
-    const amount = dscToBurn.value;
-    if (!isConnected || amount === "0") return false;
+    if (!isConnected || Number(dscToBurn.value) <= 0) return false;
 
-    const amountInWei = toWei(amount, 18);
+    const amountInWei = toWei(dscToBurn.value, 18);
     const balance = dscBalance.value;
     const debt = totalDscMinted.value;
 
@@ -894,8 +933,7 @@ function canRedeemCollateral() {
     const isConnected = wallet.value === ConnectionState.CONNECTED;
     if (!isConnected) return false;
 
-    const amount = collateralToRedeem.value;
-    if (amount === "0") return false;
+    if (Number(collateralToRedeem.value) <= 0) return false;
 
     const tokenName = redeemToken.value;
     if (!tokenName) return false;
@@ -907,7 +945,7 @@ function canRedeemCollateral() {
     }
 
     const decimals = ERC20_CONFIG[tokenName].decimals;
-    const amountInWei = toWei(amount, decimals);
+    const amountInWei = toWei(collateralToRedeem.value, decimals);
 
     if (amountInWei > tokenBalance) {
         return false;
@@ -919,6 +957,16 @@ function updateRedeemOnlyButton() {
     const notBusy = !redeemInProgress.value;
     const btn = document.getElementById("btn-redeem-only");
     btn.disabled = !(canRedeemCollateral() && notBusy);
+}
+
+function canBurnAndRedeem() {
+    return canBurnDsc() && canRedeemCollateral();
+}
+
+function updateBurnAndRedeemButton() {
+    const notBusy = !burnAndRedeemInProgress.value;
+    const btn = document.getElementById("btn-burn-redeem");
+    btn.disabled = !(canBurnAndRedeem() && notBusy);
 }
 
 collateralToDeposit.onChange(updateDepositOnlyButton);
@@ -948,6 +996,16 @@ collateralWethBalance.onChange(updateRedeemOnlyButton);
 collateralWbtcBalance.onChange(updateRedeemOnlyButton);
 wallet.onChange(updateRedeemOnlyButton);
 redeemInProgress.onChange(updateRedeemOnlyButton);
+
+dscToBurn.onChange(updateBurnAndRedeemButton);
+collateralToRedeem.onChange(updateBurnAndRedeemButton);
+redeemToken.onChange(updateBurnAndRedeemButton);
+dscBalance.onChange(updateBurnAndRedeemButton);
+totalDscMinted.onChange(updateBurnAndRedeemButton);
+collateralWethBalance.onChange(updateBurnAndRedeemButton);
+collateralWbtcBalance.onChange(updateBurnAndRedeemButton);
+wallet.onChange(updateBurnAndRedeemButton);
+burnAndRedeemInProgress.onChange(updateBurnAndRedeemButton);
 
 wallet.onChange(state => {
     const btn = walletConnectionButton;

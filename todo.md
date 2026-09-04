@@ -1,324 +1,5 @@
 # todo
 
-## User Story: Burn & Redeem (Happy Path)
-As a connected user with DSC debt and deposited collateral, I want to
-burn DSC and redeem collateral in one step so that I can reduce my
-debt and withdraw assets efficiently.
-
-**Acceptance Criteria:**
-- The user selects a collateral token, enters a burn amount > 0 and a
-  redeem amount > 0
-- The dApp validates both amounts are valid (burn ≤ DSC balance, burn
-  ≤ debt, redeem ≤ deposited balance)
-- Clicking **Burn & Redeem** triggers `approve` on DSC, then
-  `burnDsc`, then `redeemCollateral`
-- After both transactions confirm, the dashboard refreshes:
-  - Total DSC debt decreases by the burned amount
-  - DSC wallet balance decreases by the burned amount
-  - Wallet balance for the redeemed token increases by the redeemed
-    amount
-  - Collateral breakdown table shows the reduced deposited balance and
-    USD value
-  - Health factor is recalculated
-
-**Scenarios:**
-- **Scenario 1: Successful burn and redeem**
-  - Given the user has 500 DSC debt, 600 DSC in wallet, and 2 WETH
-    deposited
-  - When they burn 200 DSC and redeem 1 WETH
-  - Then debt becomes 300 DSC, wallet DSC becomes 400, WETH wallet
-    balance increases by 1, deposited WETH becomes 1, and health
-    factor updates
-
-- **Scenario 2: Full repayment and full redemption**
-  - Given the user has 100 DSC debt, 100 DSC in wallet, and 0.5 WBTC
-    deposited
-  - When they burn 100 DSC and redeem 0.5 WBTC
-  - Then debt becomes 0, DSC wallet becomes 0, WBTC wallet balance
-    increases by 0.5, deposited WBTC becomes 0, and health factor
-    shows "OK"
-
----
-
-## User Story: Prevent Burn & Redeem with Zero Amounts
-As a user, I want the dApp to prevent me from burning 0 DSC or
-redeeming 0 collateral, so I don't waste gas.
-
-**Acceptance Criteria:**
-- The **Burn & Redeem** button is disabled when either the burn amount
-  or the redeem amount is 0 or empty
-
-**Scenarios:**
-- **Scenario 1: Burn amount is 0**
-  - Given the user enters 0 in the burn amount field and a positive
-    redeem amount
-  - Then the **Burn & Redeem** button is disabled
-
-- **Scenario 2: Redeem amount is 0**
-  - Given the user enters a positive burn amount and 0 in the redeem
-    amount field
-  - Then the **Burn & Redeem** button is disabled
-
-- **Scenario 3: Both fields are empty**
-  - Given both the burn and redeem amount fields are blank
-  - Then the **Burn & Redeem** button is disabled
-
----
-
-## User Story: Prevent Burn & Redeem with Insufficient DSC Balance
-As a user, I want the dApp to prevent me from attempting to burn more
-DSC than I hold in my wallet.
-
-**Acceptance Criteria:**
-- The **Burn & Redeem** button is disabled when the entered burn
-  amount > DSC wallet balance
-- A warning message is shown (e.g., "Insufficient DSC balance")
-
-**Scenarios:**
-- **Scenario 1: Amount exceeds balance**
-  - Given the user has 100 DSC in wallet
-  - When they enter 150 DSC to burn and a valid redeem amount
-  - Then the **Burn & Redeem** button is disabled and a warning is
-    displayed
-
-- **Scenario 2: Amount equals balance (valid)**
-  - Given the user has 100 DSC in wallet
-  - When they enter 100 DSC and a valid redeem amount
-  - Then the **Burn & Redeem** button is enabled (provided other
-    conditions are met)
-
----
-
-## User Story: Prevent Burn & Redeem When Burn Exceeds Debt
-As a user, I want the dApp to prevent me from burning more DSC than my
-current debt.
-
-**Acceptance Criteria:**
-- The **Burn & Redeem** button is disabled when the entered burn
-  amount > total DSC debt
-- A warning message is shown (e.g., "Amount exceeds debt")
-
-**Scenarios:**
-- **Scenario 1: Amount exceeds debt**
-  - Given the user has 200 DSC debt and 500 DSC in wallet
-  - When they enter 300 DSC to burn and a valid redeem amount
-  - Then the **Burn & Redeem** button is disabled and a warning is
-    displayed
-
-- **Scenario 2: Amount equals debt (valid)**
-  - Given the user has 200 DSC debt
-  - When they enter 200 DSC and a valid redeem amount
-  - Then the **Burn & Redeem** button is enabled
-
----
-
-## User Story: Prevent Redeeming More Than Deposited Balance in Burn & Redeem
-As a user, I want the dApp to prevent me from redeeming more
-collateral than I have deposited when using the combined action.
-
-**Acceptance Criteria:**
-- The **Burn & Redeem** button is disabled when the entered redeem
-  amount > deposited balance for the selected token
-- A warning message is shown (e.g., "Insufficient deposited balance")
-
-**Scenarios:**
-- **Scenario 1: Amount exceeds deposited balance**
-  - Given the user has 1 WETH deposited
-  - When they enter 2 WETH to redeem and a valid burn amount
-  - Then the **Burn & Redeem** button is disabled and a warning is
-    displayed
-
-- **Scenario 2: Amount equals deposited balance (valid)**
-  - Given the user has 1 WETH deposited
-  - When they enter 1 WETH and a valid burn amount
-  - Then the **Burn & Redeem** button is enabled
-
----
-
-## User Story: Warn When Burn & Redeem Would Break Health Factor
-As a user, I want to be warned before executing the combined action if
-it would cause my health factor to drop below the minimum.
-
-**Acceptance Criteria:**
-- The dApp calculates the projected health factor after both burn and
-  redeem (using `calculateHealthFactor`)
-- If the projected health factor < `MIN_HEALTH_FACTOR`, a warning is
-  shown
-- The warning message explains that the combined action would break
-  the health factor
-
-**Scenarios:**
-- **Scenario 1: Combined action would break health factor**
-  - Given the user has a health factor of 1.1
-  - When they enter burn and redeem amounts that would drop the health
-    factor below 1
-  - Then a warning is displayed
-
-- **Scenario 2: Combined action is safe**
-  - Given the user has a health factor of 2.0
-  - When they enter amounts that keep the health factor ≥ 1
-  - Then no warning is shown
-
----
-
-## User Story: Handle User Rejection of Approval in Burn & Redeem
-As a user, if I reject the DSC approval transaction during the
-combined flow, I expect the dApp to cancel gracefully and show a clear
-message.
-
-**Acceptance Criteria:**
-- When the user rejects the `approve` transaction, the dApp catches
-  the error
-- The burn and redeem do not proceed
-- A status message is shown (e.g., "Approval cancelled")
-- The UI remains consistent
-
-**Scenarios:**
-- **Scenario 1: User rejects approval**
-  - Given the user clicks **Burn & Redeem**
-  - When the MetaMask approval prompt appears and the user clicks
-    "Reject"
-  - Then the dApp shows "Approval cancelled" and does not call
-    `burnDsc` or `redeemCollateral`
-
----
-
-## User Story: Handle User Rejection of Burn Transaction in Combined Flow
-As a user, if I approve the DSC spend but reject the burn transaction,
-I expect the dApp to stop and inform me, without attempting the
-redeem.
-
-**Acceptance Criteria:**
-- After successful approval, if the user rejects the `burnDsc`
-  transaction, the dApp catches the error
-- A status message is shown (e.g., "Transaction cancelled")
-- The redeem is not attempted
-- The form remains filled
-
-**Scenarios:**
-- **Scenario 1: User rejects burn after approving**
-  - Given the user approved the DSC spend
-  - When the burn confirmation appears and the user rejects it
-  - Then the dApp shows "Transaction cancelled" and the form remains
-    filled; redeem is not called
-
----
-
-## User Story: Handle User Rejection of Redeem Transaction After Successful Burn
-As a user, if the burn succeeds but I reject the redeem transaction, I
-expect the dApp to inform me and allow me to retry the redeem
-separately.
-
-**Acceptance Criteria:**
-- After a successful burn, if the user rejects the `redeemCollateral`
-  transaction, the dApp catches the error
-- A status message is shown (e.g., "Redeem cancelled")
-- The dApp refreshes state (since the burn already changed the
-  position)
-- The user can attempt the redeem again using the **Redeem Only**
-  button
-
-**Scenarios:**
-- **Scenario 1: User rejects redeem after burn succeeded**
-  - Given the burn transaction was mined
-  - When the redeem confirmation appears and the user rejects it
-  - Then the dApp shows "Redeem cancelled", refreshes the dashboard,
-    and the redeem form remains filled
-
----
-
-## User Story: Handle On-Chain Failure of Burn in Combined Flow
-As a user, if the burn transaction fails on-chain, I want to see a
-descriptive error and the redeem should not be attempted.
-
-**Acceptance Criteria:**
-- If `burnDsc` reverts (e.g., `DSCEngine__BreaksHealthFactor` or
-  `DSCEngine__NeedsMoreThanZero`), the dApp catches the error
-- A descriptive error message is shown
-- The redeem is not attempted
-- The UI does not crash; the user can try again
-
-**Scenarios:**
-- **Scenario 1: Burn reverts due to health factor**
-  - Given the user attempts a burn that would break the health factor
-    (and the frontend check was bypassed)
-  - When the transaction reverts with `DSCEngine__BreaksHealthFactor`
-  - Then the dApp displays the error reason and the form remains
-    intact; redeem is not called
-
----
-
-## User Story: Handle On-Chain Failure of Redeem After Successful Burn
-As a user, if the burn succeeds but the redeem fails on-chain, I want
-to see an error message and be able to retry the redeem.
-
-**Acceptance Criteria:**
-- If `redeemCollateral` reverts after a successful burn, the dApp
-  catches the error
-- A descriptive error message is shown (e.g., "Redeem failed: health
-  factor too low")
-- The dApp refreshes state (since the burn changed the position)
-- The user can retry the redeem using the **Redeem Only** button
-
-**Scenarios:**
-- **Scenario 1: Redeem reverts due to health factor after burn**
-  - Given the burn succeeded but the subsequent redeem would break the
-    health factor
-  - When the redeem transaction reverts with
-    `DSCEngine__BreaksHealthFactor`
-  - Then the dApp displays the error reason, refreshes the dashboard,
-    and the redeem form remains filled
-
----
-
-## User Story: Handle Network Error During Burn & Redeem
-As a user, if a network error occurs at any step, I want to be
-informed so I can retry.
-
-**Acceptance Criteria:**
-- If any RPC call throws a network error, the dApp catches it
-- A status message is shown (e.g., "Network error, please try again")
-- The form remains filled and the user can retry from the failed step
-
-**Scenarios:**
-- **Scenario 1: Network error during approval**
-  - Given the user clicks **Burn & Redeem**
-  - When the approval RPC call fails due to a network issue
-  - Then the dApp shows "Network error, please try again" and the form
-    remains intact
-
-- **Scenario 2: Network error during burn**
-  - Given the approval succeeded
-  - When the `burnDsc` RPC call fails due to a network issue
-  - Then the dApp shows "Network error, please try again" and the form
-    remains intact
-
-- **Scenario 3: Network error during redeem**
-  - Given the burn succeeded
-  - When the `redeemCollateral` RPC call fails due to a network issue
-  - Then the dApp shows "Network error, please try again", refreshes
-    state, and the form remains filled
-
----
-
-## User Story: Refresh Dashboard After Burn & Redeem
-As a user, after a successful burn and redeem, I want the dashboard to
-automatically update all relevant data.
-
-**Acceptance Criteria:**
-- After both transactions are confirmed, `loadAppState()` is triggered
-- Wallet balances, collateral breakdown, health factor, and total debt
-  are refreshed
-- The updated values are displayed within a few seconds
-
-**Scenarios:**
-- **Scenario 1: Dashboard refreshes after burn and redeem**
-  - Given the user burns 100 DSC and redeems 0.5 WETH
-  - When both transactions are mined
-  - Then debt decreases by 100, DSC balance decreases by 100, WETH
-    wallet balance increases by 0.5, deposited WETH decreases by 0.5,
-    and health factor updates
-
 ## User Story: Inform User When No Collateral Deposited
 As a user with no collateral deposited, I want to be informed that I
 cannot mint DSC so that I understand why the feature is unavailable.
@@ -348,6 +29,261 @@ cannot mint DSC so that I understand why the feature is unavailable.
 
 # in progress
 
+
+# done
+
+## User Story 53: Prevent Burn & Redeem with Zero Amounts
+As a user, I want the dApp to prevent me from burning 0 DSC or
+redeeming 0 collateral, so I don't waste gas.
+
+**Acceptance Criteria:**
+- The **Burn & Redeem** button is disabled when either the burn amount
+  or the redeem amount is 0 or empty
+
+**Scenarios:**
+- **Scenario 1: Burn amount is 0**
+  - Given the user enters 0 in the burn amount field and a positive
+    redeem amount
+  - Then the **Burn & Redeem** button is disabled
+
+- **Scenario 2: Redeem amount is 0**
+  - Given the user enters a positive burn amount and 0 in the redeem
+    amount field
+  - Then the **Burn & Redeem** button is disabled
+
+- **Scenario 3: Both fields are empty**
+  - Given both the burn and redeem amount fields are blank
+  - Then the **Burn & Redeem** button is disabled
+
+---
+
+## User Story 54: Prevent Burn & Redeem with Insufficient DSC Balance
+As a user, I want the dApp to prevent me from attempting to burn more
+DSC than I hold in my wallet.
+
+**Acceptance Criteria:**
+- The **Burn & Redeem** button is disabled when the entered burn
+  amount > DSC wallet balance
+- A warning message is shown (e.g., "Insufficient DSC balance")
+
+**Scenarios:**
+- **Scenario 1: Amount exceeds balance**
+  - Given the user has 100 DSC in wallet
+  - When they enter 150 DSC to burn and a valid redeem amount
+  - Then the **Burn & Redeem** button is disabled and a warning is
+    displayed
+
+- **Scenario 2: Amount equals balance (valid)**
+  - Given the user has 100 DSC in wallet
+  - When they enter 100 DSC and a valid redeem amount
+  - Then the **Burn & Redeem** button is enabled (provided other
+    conditions are met)
+
+---
+
+## User Story 55: Prevent Burn & Redeem When Burn Exceeds Debt
+As a user, I want the dApp to prevent me from burning more DSC than my
+current debt.
+
+**Acceptance Criteria:**
+- The **Burn & Redeem** button is disabled when the entered burn
+  amount > total DSC debt
+- A warning message is shown (e.g., "Amount exceeds debt")
+
+**Scenarios:**
+- **Scenario 1: Amount exceeds debt**
+  - Given the user has 200 DSC debt and 500 DSC in wallet
+  - When they enter 300 DSC to burn and a valid redeem amount
+  - Then the **Burn & Redeem** button is disabled and a warning is
+    displayed
+
+- **Scenario 2: Amount equals debt (valid)**
+  - Given the user has 200 DSC debt
+  - When they enter 200 DSC and a valid redeem amount
+  - Then the **Burn & Redeem** button is enabled
+
+---
+
+## User Story 56: Prevent Redeeming More Than Deposited Balance in Burn & Redeem
+As a user, I want the dApp to prevent me from redeeming more
+collateral than I have deposited when using the combined action.
+
+**Acceptance Criteria:**
+- The **Burn & Redeem** button is disabled when the entered redeem
+  amount > deposited balance for the selected token
+- A warning message is shown (e.g., "Insufficient deposited balance")
+
+**Scenarios:**
+- **Scenario 1: Amount exceeds deposited balance**
+  - Given the user has 1 WETH deposited
+  - When they enter 2 WETH to redeem and a valid burn amount
+  - Then the **Burn & Redeem** button is disabled and a warning is
+    displayed
+
+- **Scenario 2: Amount equals deposited balance (valid)**
+  - Given the user has 1 WETH deposited
+  - When they enter 1 WETH and a valid burn amount
+  - Then the **Burn & Redeem** button is enabled
+
+---
+
+## User Story 57: Warn When Burn & Redeem Would Break Health Factor
+As a user, I want to be warned before executing the combined action if
+it would cause my health factor to drop below the minimum.
+
+**Acceptance Criteria:**
+- The dApp calculates the projected health factor after both burn and
+  redeem (using `calculateHealthFactor`)
+- If the projected health factor < `MIN_HEALTH_FACTOR`, a warning is
+  shown
+- The warning message explains that the combined action would break
+  the health factor
+
+**Scenarios:**
+- **Scenario 1: Combined action would break health factor**
+  - Given the user has a health factor of 1.1
+  - When they enter burn and redeem amounts that would drop the health
+    factor below 1
+  - Then a warning is displayed
+
+- **Scenario 2: Combined action is safe**
+  - Given the user has a health factor of 2.0
+  - When they enter amounts that keep the health factor ≥ 1
+  - Then no warning is shown
+
+---
+
+## User Story 58: Handle User Rejection of Approval in Burn & Redeem
+As a user, if I reject the DSC approval transaction during the
+combined flow, I expect the dApp to cancel gracefully and show a clear
+message.
+
+**Acceptance Criteria:**
+- When the user rejects the `approve` transaction, the dApp catches
+  the error
+- The burn and redeem do not proceed
+- A status message is shown (e.g., "Approval cancelled")
+- The UI remains consistent
+
+**Scenarios:**
+- **Scenario 1: User rejects approval**
+  - Given the user clicks **Burn & Redeem**
+  - When the MetaMask approval prompt appears and the user clicks
+    "Reject"
+  - Then the dApp shows "Approval cancelled" and does not call
+    `burnDsc` or `redeemCollateral`
+
+---
+
+
+## User Story 59: Handle On-Chain Failure of Burn in Combined Flow
+As a user, if the burn transaction fails on-chain, I want to see a
+descriptive error and the redeem should not be attempted.
+
+**Acceptance Criteria:**
+- If `burnDsc` reverts (e.g., `DSCEngine__BreaksHealthFactor` or
+  `DSCEngine__NeedsMoreThanZero`), the dApp catches the error
+- A descriptive error message is shown
+- The redeem is not attempted
+- The UI does not crash; the user can try again
+
+**Scenarios:**
+- **Scenario 1: Burn reverts due to health factor**
+  - Given the user attempts a burn that would break the health factor
+    (and the frontend check was bypassed)
+  - When the transaction reverts with `DSCEngine__BreaksHealthFactor`
+  - Then the dApp displays the error reason and the form remains
+    intact; redeem is not called
+
+---
+
+## User Story 60: Handle Network Error During Burn & Redeem
+As a user, if a network error occurs at any step, I want to be
+informed so I can retry.
+
+**Acceptance Criteria:**
+- If any RPC call throws a network error, the dApp catches it
+- A status message is shown (e.g., "Network error, please try again")
+- The form remains filled and the user can retry from the failed step
+
+**Scenarios:**
+- **Scenario 1: Network error during approval**
+  - Given the user clicks **Burn & Redeem**
+  - When the approval RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again" and the form
+    remains intact
+
+- **Scenario 2: Network error during burn**
+  - Given the approval succeeded
+  - When the `burnDsc` RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again" and the form
+    remains intact
+
+- **Scenario 3: Network error during redeem**
+  - Given the burn succeeded
+  - When the `redeemCollateral` RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again", refreshes
+    state, and the form remains filled
+
+---
+
+## User Story 61: Refresh Dashboard After Burn & Redeem
+As a user, after a successful burn and redeem, I want the dashboard to
+automatically update all relevant data.
+
+**Acceptance Criteria:**
+- After both transactions are confirmed, `loadAppState()` is triggered
+- Wallet balances, collateral breakdown, health factor, and total debt
+  are refreshed
+- The updated values are displayed within a few seconds
+
+**Scenarios:**
+- **Scenario 1: Dashboard refreshes after burn and redeem**
+  - Given the user burns 100 DSC and redeems 0.5 WETH
+  - When both transactions are mined
+  - Then debt decreases by 100, DSC balance decreases by 100, WETH
+    wallet balance increases by 0.5, deposited WETH decreases by 0.5,
+    and health factor updates
+
+## User Story 52: Burn & Redeem (Happy Path)
+As a connected user with DSC debt and deposited collateral, I want to
+burn DSC and redeem collateral in one step so that I can reduce my
+debt and withdraw assets efficiently.
+
+**Acceptance Criteria:**
+- The user selects a collateral token, enters a burn amount > 0 and a
+  redeem amount > 0
+- The dApp validates both amounts are valid (burn ≤ DSC balance, burn
+  ≤ debt, redeem ≤ deposited balance)
+- Clicking **Burn & Redeem** triggers `approve` on DSC, then
+  `burnDsc`, then `redeemCollateral`
+- After both transactions confirm, the dashboard refreshes:
+  - Total DSC debt decreases by the burned amount
+  - DSC wallet balance decreases by the burned amount
+  - Wallet balance for the redeemed token increases by the redeemed
+    amount
+  - Collateral breakdown table shows the reduced deposited balance and
+    USD value
+  - Health factor is recalculated
+
+**Scenarios:**
+- [x] **Scenario 1: Successful burn and redeem**
+  - Given the user has 500 DSC debt, 600 DSC in wallet, and 2 WETH
+    deposited
+  - When they burn 200 DSC and redeem 1 WETH
+  - Then debt becomes 300 DSC, wallet DSC becomes 400, WETH wallet
+    balance increases by 1, deposited WETH becomes 1, and health
+    factor updates
+
+- [x] **Scenario 2: Full repayment and full redemption**
+  - Given the user has 100 DSC debt, 100 DSC in wallet, and 0.5 WBTC
+    deposited
+  - When they burn 100 DSC and redeem 0.5 WBTC
+  - Then debt becomes 0, DSC wallet becomes 0, WBTC wallet balance
+    increases by 0.5, deposited WBTC becomes 0, and health factor
+    shows "OK"
+
+---
 ## User Story 51: Refresh Dashboard After Redeem
 As a user, after a successful redemption, I want the dashboard to
 automatically update all relevant data.
@@ -365,8 +301,6 @@ automatically update all relevant data.
   - When the transaction is mined
   - Then the WETH wallet balance increases, collateral table shows the
     reduced deposit, and health factor updates if applicable
-
-# done
 
 ## User Story 50: Handle Network Error During Redeem
 As a user, if a network error occurs while redeeming, I want to be

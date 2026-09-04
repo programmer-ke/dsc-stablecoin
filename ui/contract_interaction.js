@@ -156,3 +156,14 @@ async function redeemCollateral(tokenName, amount) {
     const tx = await engine.redeemCollateral(config.address, amount);
     await tx.wait();
 }
+
+// Burn DSC and redeem collateral in one step
+async function burnAndRedeemCollateral(tokenName, burnAmount, redeemAmount) {
+    const engine = await getDscEngineWrite();
+    const config = ERC20_CONFIG[tokenName];
+    const dscToken = new ethers.Contract(DSC_ADDRESS, DSC_ABI, await getSigner());
+    const txApprove = await dscToken.approve(DSC_ENGINE_ADDRESS, burnAmount);
+    await txApprove.wait();
+    const tx = await engine.redeemCollateralForDsc(config.address, redeemAmount, burnAmount);
+    await tx.wait();
+}
