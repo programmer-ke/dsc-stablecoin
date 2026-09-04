@@ -1,157 +1,5 @@
 # todo
 
-### User Story: Redeem Collateral (Happy Path)
-As a connected user with deposited WETH or WBTC, I want to redeem some collateral without repaying DSC so that I can withdraw my assets.
-
-**Acceptance Criteria:**
-- The user selects a collateral token and enters an amount > 0
-- The dApp validates that the amount does not exceed the user’s deposited balance
-- Clicking **Redeem Only** calls `DSCEngine.redeemCollateral(tokenAddress, amountCollateral)`
-- No token approval is required
-- After the transaction confirms, the dashboard refreshes:
-  - Wallet balance for the redeemed token increases
-  - Collateral breakdown table shows the reduced deposited balance and USD value
-  - Health factor is recalculated
-  - Total DSC debt remains unchanged
-
-**Scenarios:**
-- **Scenario 1: Successful partial redemption**
-  - Given the user has 2 WETH deposited and 0.5 WETH in wallet
-  - When they redeem 1 WETH
-  - Then the WETH wallet balance increases by 1, the deposited WETH balance decreases to 1, and health factor updates
-
-- **Scenario 2: Successful full redemption with no debt**
-  - Given the user has 0.1 WBTC deposited and no DSC debt
-  - When they redeem 0.1 WBTC
-  - Then the deposited WBTC balance becomes 0, the wallet balance increases by 0.1 WBTC, and health factor shows "OK"
-
----
-
-### User Story: Prevent Redeeming Zero Amount
-As a user, I want the dApp to prevent me from redeeming 0 collateral so I don’t waste gas.
-
-**Acceptance Criteria:**
-- The **Redeem Only** button is disabled when the redeem amount is 0 or empty
-
-**Scenarios:**
-- **Scenario 1: Amount is 0**
-  - Given the user enters 0 in the collateral redeem amount field
-  - Then the **Redeem Only** button is disabled
-
-- **Scenario 2: Amount is empty**
-  - Given the collateral redeem amount field is blank
-  - Then the **Redeem Only** button is disabled
-
----
-
-### User Story: Prevent Redeeming More Than Deposited Balance
-As a user, I want the dApp to prevent me from attempting to redeem more collateral than I have deposited, because the contract would revert.
-
-**Acceptance Criteria:**
-- The **Redeem Only** button is disabled when the entered amount > deposited balance for the selected token
-- A warning message is shown (e.g., "Insufficient deposited balance")
-
-**Scenarios:**
-- **Scenario 1: Amount exceeds deposited balance**
-  - Given the user has 1 WETH deposited
-  - When they enter 2 WETH to redeem
-  - Then the **Redeem Only** button is disabled and a warning is displayed
-
-- **Scenario 2: Amount equals deposited balance (valid)**
-  - Given the user has 1 WETH deposited
-  - When they enter 1 WETH
-  - Then the **Redeem Only** button is enabled, provided other conditions are met
-
----
-
-### User Story: Warn When Redeem Would Break Health Factor
-As a user, I want to be warned before redeeming if the withdrawal would cause my health factor to drop below the minimum, so I can avoid a failed transaction.
-
-**Acceptance Criteria:**
-- The dApp calculates the projected health factor after redemption using `calculateHealthFactor`
-- If the projected health factor < `MIN_HEALTH_FACTOR`, a warning is shown
-- The warning message explains that the redemption would break the health factor
-
-**Scenarios:**
-- **Scenario 1: Redemption would break health factor**
-  - Given the user has a health factor of 1.1
-  - When they enter a redeem amount that would drop the health factor below 1
-  - Then a warning is displayed
-
-- **Scenario 2: Redemption is safe**
-  - Given the user has a health factor of 2.0
-  - When they enter an amount that keeps the health factor ≥ 1
-  - Then no warning is shown
-
----
-
-### User Story: Handle User Rejection of Redeem Transaction
-As a user, if I reject the redeem transaction in my wallet, I expect the dApp to cancel gracefully and show a clear message.
-
-**Acceptance Criteria:**
-- When the user rejects `redeemCollateral`, the dApp catches the error
-- A status message is shown (e.g., "Transaction cancelled")
-- The form remains filled and the UI stays consistent
-
-**Scenarios:**
-- **Scenario 1: User rejects redeem**
-  - Given the user clicks **Redeem Only**
-  - When the wallet confirmation appears and the user rejects it
-  - Then the dApp shows "Transaction cancelled" and the form remains filled
-
----
-
-### User Story: Handle On-Chain Failure of Redeem
-As a user, if the redeem transaction fails on-chain, I want to see a descriptive error message.
-
-**Acceptance Criteria:**
-- If `redeemCollateral` reverts (e.g., `DSCEngine__BreaksHealthFactor`, `DSCEngine__NeedsMoreThanZero`, or `DSCEngine__TokenNotAllowed`), the dApp catches the error
-- A descriptive error message is shown (e.g., "Transaction failed: health factor too low")
-- The UI does not crash; the user can try again
-
-**Scenarios:**
-- **Scenario 1: Redeem reverts due to health factor**
-  - Given the user attempts to redeem an amount that would break the health factor (and the frontend check was bypassed)
-  - When the transaction reverts with `DSCEngine__BreaksHealthFactor`
-  - Then the dApp displays the error reason and the form remains intact
-
-- **Scenario 2: Redeem reverts due to zero amount**
-  - Given the user approved the redeem but the amount is zero due to stale state
-  - When the transaction reverts with `DSCEngine__NeedsMoreThanZero`
-  - Then the dApp displays the error reason
-
----
-
-### User Story: Handle Network Error During Redeem
-As a user, if a network error occurs while redeeming, I want to be informed so I can retry.
-
-**Acceptance Criteria:**
-- If the RPC call throws a network error, the dApp catches it
-- A status message is shown (e.g., "Network error, please try again")
-- The form remains filled and the user can retry
-
-**Scenarios:**
-- **Scenario 1: Network error during redeem**
-  - Given the user clicks **Redeem Only**
-  - When the `redeemCollateral` RPC call fails due to a network issue
-  - Then the dApp shows "Network error, please try again" and the form remains intact
-
----
-
-### User Story: Refresh Dashboard After Redeem
-As a user, after a successful redemption, I want the dashboard to automatically update all relevant data.
-
-**Acceptance Criteria:**
-- After the redeem transaction is confirmed, `loadAppState()` is triggered
-- Wallet balances, collateral breakdown, and health factor are refreshed
-- The updated values are displayed within a few seconds
-
-**Scenarios:**
-- **Scenario 1: Dashboard refreshes after redeem**
-  - Given the user redeems 1 WETH
-  - When the transaction is mined
-  - Then the WETH wallet balance increases, collateral table shows the reduced deposit, and health factor updates if applicable
-
 
 ## User Story: Inform User When No Collateral Deposited
 As a user with no collateral deposited, I want to be informed that I
@@ -182,7 +30,187 @@ cannot mint DSC so that I understand why the feature is unavailable.
 
 # in progress
 
+## User Story 51: Refresh Dashboard After Redeem
+As a user, after a successful redemption, I want the dashboard to
+automatically update all relevant data.
+
+**Acceptance Criteria:**
+- After the redeem transaction is confirmed, `loadAppState()` is
+  triggered
+- Wallet balances, collateral breakdown, and health factor are
+  refreshed
+- The updated values are displayed within a few seconds
+
+**Scenarios:**
+- **Scenario 1: Dashboard refreshes after redeem**
+  - Given the user redeems 1 WETH
+  - When the transaction is mined
+  - Then the WETH wallet balance increases, collateral table shows the
+    reduced deposit, and health factor updates if applicable
+
 # done
+
+## User Story 50: Handle Network Error During Redeem
+As a user, if a network error occurs while redeeming, I want to be
+informed so I can retry.
+
+**Acceptance Criteria:**
+- If the RPC call throws a network error, the dApp catches it
+- A status message is shown (e.g., "Network error, please try again")
+- The form remains filled and the user can retry
+
+**Scenarios:**
+- **Scenario 1: Network error during redeem**
+  - Given the user clicks **Redeem Only**
+  - When the `redeemCollateral` RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again" and the form
+    remains intact
+
+## User Story 49: Handle On-Chain Failure of Redeem
+As a user, if the redeem transaction fails on-chain, I want to see a
+descriptive error message.
+
+**Acceptance Criteria:**
+- If `redeemCollateral` reverts (e.g.,
+  `DSCEngine__BreaksHealthFactor`, `DSCEngine__NeedsMoreThanZero`, or
+  `DSCEngine__TokenNotAllowed`), the dApp catches the error
+- A descriptive error message is shown (e.g., "Transaction failed:
+  health factor too low")
+- The UI does not crash; the user can try again
+
+**Scenarios:**
+- **Scenario 1: Redeem reverts due to health factor**
+  - Given the user attempts to redeem an amount that would break the
+    health factor (and the frontend check was bypassed)
+  - When the transaction reverts with `DSCEngine__BreaksHealthFactor`
+  - Then the dApp displays the error reason and the form remains
+    intact
+
+- **Scenario 2: Redeem reverts due to zero amount**
+  - Given the user approved the redeem but the amount is zero due to
+    stale state
+  - When the transaction reverts with `DSCEngine__NeedsMoreThanZero`
+  - Then the dApp displays the error reason
+
+---
+## User Story 48: Handle User Rejection of Redeem Transaction
+As a user, if I reject the redeem transaction in my wallet, I expect
+the dApp to cancel gracefully and show a clear message.
+
+**Acceptance Criteria:**
+- When the user rejects `redeemCollateral`, the dApp catches the error
+- A status message is shown (e.g., "Transaction cancelled")
+- The form remains filled and the UI stays consistent
+
+**Scenarios:**
+- **Scenario 1: User rejects redeem**
+  - Given the user clicks **Redeem Only**
+  - When the wallet confirmation appears and the user rejects it
+  - Then the dApp shows "Transaction cancelled" and the form remains
+    filled
+
+---
+
+
+## User Story 47: Warn When Redeem Would Break Health Factor
+As a user, I want to be warned before redeeming if the withdrawal
+would cause my health factor to drop below the minimum, so I can avoid
+a failed transaction.
+
+**Acceptance Criteria:**
+- The dApp calculates the projected health factor after redemption
+  using `calculateHealthFactor`
+- If the projected health factor < `MIN_HEALTH_FACTOR`, a warning is
+  shown
+- The warning message explains that the redemption would break the
+  health factor
+
+**Scenarios:**
+- [x] **Scenario 1: Redemption would break health factor**
+  - Given the user has a health factor of 1.1
+  - When they enter a redeem amount that would drop the health factor
+    below 1
+  - Then a warning is displayed
+
+- [x] **Scenario 2: Redemption is safe**
+  - Given the user has a health factor of 2.0
+  - When they enter an amount that keeps the health factor ≥ 1
+  - Then no warning is shown
+
+
+## User Story 46: Prevent Redeeming More Than Deposited Balance
+As a user, I want the dApp to prevent me from attempting to redeem
+more collateral than I have deposited, because the contract would
+revert.
+
+**Acceptance Criteria:**
+- The **Redeem Only** button is disabled when the entered amount >
+  deposited balance for the selected token
+- A warning message is shown (e.g., "Insufficient deposited balance")
+
+**Scenarios:**
+- **Scenario 1: Amount exceeds deposited balance**
+  - Given the user has 1 WETH deposited
+  - When they enter 2 WETH to redeem
+  - Then the **Redeem Only** button is disabled and a warning is
+    displayed
+
+- **Scenario 2: Amount equals deposited balance (valid)**
+  - Given the user has 1 WETH deposited
+  - When they enter 1 WETH
+  - Then the **Redeem Only** button is enabled, provided other
+    conditions are met
+
+
+## User Story 45: Prevent Redeeming Zero Amount
+As a user, I want the dApp to prevent me from redeeming 0 collateral
+so I don’t waste gas.
+
+**Acceptance Criteria:**
+- The **Redeem Only** button is disabled when the redeem amount is 0
+  or empty
+
+**Scenarios:**
+- **Scenario 1: Amount is 0**
+  - Given the user enters 0 in the collateral redeem amount field
+  - Then the **Redeem Only** button is disabled
+
+- **Scenario 2: Amount is empty**
+  - Given the collateral redeem amount field is blank
+  - Then the **Redeem Only** button is disabled
+
+
+## User Story 44: Redeem Collateral (Happy Path)
+As a connected user with deposited WETH or WBTC, I want to redeem some
+collateral without repaying DSC so that I can withdraw my assets.
+
+**Acceptance Criteria:**
+- The user selects a collateral token and enters an amount > 0
+- The dApp validates that the amount does not exceed the user’s
+  deposited balance
+- Clicking **Redeem Only** calls
+  `DSCEngine.redeemCollateral(tokenAddress, amountCollateral)`
+- No token approval is required
+- After the transaction confirms, the dashboard refreshes:
+  - Wallet balance for the redeemed token increases
+  - Collateral breakdown table shows the reduced deposited balance and
+    USD value
+  - Health factor is recalculated
+  - Total DSC debt remains unchanged
+
+**Scenarios:**
+- [x] **Scenario 1: Successful partial redemption**
+  - Given the user has 2 WETH deposited and 0.5 WETH in wallet
+  - When they redeem 1 WETH
+  - Then the WETH wallet balance increases by 1, the deposited WETH
+    balance decreases to 1, and health factor updates
+
+- [x] **Scenario 2: Successful full redemption with no debt**
+  - Given the user has 0.1 WBTC deposited and no DSC debt
+  - When they redeem 0.1 WBTC
+  - Then the deposited WBTC balance becomes 0, the wallet balance
+    increases by 0.1 WBTC, and health factor shows "OK"
+
 
 ### User Story 43: Warn When Burn Would Leave Health Factor Broken
 As a user with a health factor already below the minimum, I want to be

@@ -148,3 +148,11 @@ async function burnDsc(amount) {
     const tx = await engine.burnDsc(amount);
     await tx.wait();
 }
+
+// Redeem Collateral (withdraw)
+async function redeemCollateral(tokenName, amount) {
+    const engine = await getDscEngineWrite();
+    const config = ERC20_CONFIG[tokenName];
+    const tx = await engine.redeemCollateral(config.address, amount);
+    await tx.wait();
+}
