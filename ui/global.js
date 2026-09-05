@@ -37,6 +37,9 @@ const EVENT_NAME_LIST = [
     "BurnAndRedeem",
     "BurnAndRedeemSucceeded",
     "BurnAndRedeemFailed",
+    "CheckLiquidation",
+    "LiquidationCheckSucceeded",
+    "LiquidationCheckFailed",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -110,6 +113,11 @@ const collateralToRedeem = createObservable("0");
 const redeemInProgress = createObservable(false);
 
 const burnAndRedeemInProgress = createObservable(false);
+
+const liquidationCheckInProgress = createObservable(false);
+const liquidationHealthFactor = createObservable(null);
+const liquidationCollateralValue = createObservable(null);
+const liquidationDebt = createObservable(null);
 
 // Convert a human-readable amount (number or string) to wei as a BigInt.
 // Safely handles exponent notation from parseFloat by using toFixed.
@@ -307,6 +315,10 @@ function resetAppState() {
     burnInProgress.set(false);
     redeemInProgress.set(false);
     burnAndRedeemInProgress.set(false);
+    liquidationHealthFactor.set(null);
+    liquidationCollateralValue.set(null);
+    liquidationDebt.set(null);
+    liquidationCheckInProgress.set(false);
 }
 
 async function loadAppState() {
@@ -469,6 +481,39 @@ const services = {
             burnAndRedeemInProgress.set(false);
         }
     },
+    checkLiquidation: async () => {
+        let address = liquidationAddressInput.value.trim();
+
+        // Validate address
+        if (!ethers.isAddress(address)) {
+            liquidationAddressInput.classList.add("input-error");
+            showStatus("Invalid address", "error");
+            return;
+        }
+
+	if (!address.startsWith("0x"))
+	    // prepend 0x
+	    address = "0x" + address;
+
+        liquidationAddressInput.classList.remove("input-error");
+        liquidationCheckInProgress.set(true);
+
+        try {
+            const healthFactor = await fetchHealthFactor(address);
+            const [totalDebt, totalCollateralUsd] = await fetchAccountInformation(address);
+
+            liquidationHealthFactor.set(healthFactor);
+            liquidationCollateralValue.set(totalCollateralUsd);
+            liquidationDebt.set(totalDebt);
+
+            document.dispatchEvent(EVENTS.LiquidationCheckSucceeded);
+        } catch (error) {
+            console.error("Error checking position", error);
+            document.dispatchEvent(EVENTS.LiquidationCheckFailed);
+        } finally {
+            liquidationCheckInProgress.set(false);
+        }
+    },
 }
 
 
@@ -557,6 +602,18 @@ on(EVENTS.BurnAndRedeemFailed, () => {
     showStatus("Something went wrong. Please try again.", "error");
 });
 
+on(EVENTS.CheckLiquidation, services.checkLiquidation);
+on(EVENTS.LiquidationCheckSucceeded, () => {
+    // The UI updates are driven by observable changes, so nothing needed here.
+});
+on(EVENTS.LiquidationCheckFailed, () => {
+    showStatus("Network error, please try again", "error");
+    // Reset observables to clear the summary
+    liquidationHealthFactor.set(null);
+    liquidationCollateralValue.set(null);
+    liquidationDebt.set(null);
+});
+
 
 // Connection button listeners
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
@@ -589,6 +646,20 @@ const burnAndRedeemButton = document.getElementById("btn-burn-redeem");
 burnAndRedeemButton.addEventListener("click", () => {
     document.dispatchEvent(EVENTS.BurnAndRedeem);
 });
+
+const checkLiquidationButton = document.getElementById("btn-check-liquidation");
+const liquidationAddressInput = document.getElementById("liquidation-address");
+
+if (checkLiquidationButton && liquidationAddressInput) {
+    // Clear error border on input
+    liquidationAddressInput.addEventListener("input", () => {
+        liquidationAddressInput.classList.remove("input-error");
+    });
+
+    checkLiquidationButton.addEventListener("click", () => {
+        document.dispatchEvent(EVENTS.CheckLiquidation);
+    });
+}
 
 // collateral token bindings
 function _collateralTokenAddress(selectValue) {
@@ -969,6 +1040,12 @@ function updateBurnAndRedeemButton() {
     btn.disabled = !(canBurnAndRedeem() && notBusy);
 }
 
+function updateCheckLiquidationButton() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    const notBusy = !liquidationCheckInProgress.value;
+    checkLiquidationButton.disabled = !(notBusy && isConnected);
+}
+
 collateralToDeposit.onChange(updateDepositOnlyButton);
 collateralToken.onChange(updateDepositOnlyButton);
 wallet.onChange(updateDepositOnlyButton);
@@ -1006,6 +1083,9 @@ collateralWethBalance.onChange(updateBurnAndRedeemButton);
 collateralWbtcBalance.onChange(updateBurnAndRedeemButton);
 wallet.onChange(updateBurnAndRedeemButton);
 burnAndRedeemInProgress.onChange(updateBurnAndRedeemButton);
+
+liquidationCheckInProgress.onChange(updateCheckLiquidationButton);
+wallet.onChange(updateCheckLiquidationButton);
 
 wallet.onChange(state => {
     const btn = walletConnectionButton;
@@ -1141,6 +1221,45 @@ function updateDepositedBalanceDisplay() {
 redeemToken.onChange(updateDepositedBalanceDisplay);
 collateralWethBalance.onChange(updateDepositedBalanceDisplay);
 collateralWbtcBalance.onChange(updateDepositedBalanceDisplay);
+
+
+// Liquidation Monitor UI updates driven by observables
+
+liquidationHealthFactor.onChange(value => {
+    const hfEl = document.getElementById("liquidation-hf");
+    const statusText = document.getElementById("liquidation-status-text");
+
+    if (value === null) {
+        hfEl.textContent = "--";
+        hfEl.setAttribute("data-state", "unknown");
+        statusText.textContent = "";
+        document.getElementById("liquidation-form").hidden = true;
+        return;
+    }
+
+    const max_uint256 = (2n ** 256n) - 1n;
+    hfEl.textContent = value === max_uint256 ? "OK" : ethers.formatUnits(value);
+
+    if (value >= ethers.parseUnits("1", 18)) {
+        hfEl.setAttribute("data-state", "safe");
+        statusText.textContent = "Position is healthy";
+        document.getElementById("liquidation-form").hidden = true;
+    } else {
+        hfEl.setAttribute("data-state", "alert");
+        statusText.textContent = "Position is undercollateralized";
+	document.getElementById("liquidation-form").hidden = false;
+    }
+});
+
+liquidationCollateralValue.onChange(value => {
+    const el = document.getElementById("liquidation-collateral-value");
+    el.textContent = value === null ? "--" : ethers.formatUnits(value);
+});
+
+liquidationDebt.onChange(value => {
+    const el = document.getElementById("liquidation-debt");
+    el.textContent = value === null ? "--" : ethers.formatUnits(value);
+});
 
 
 function truncateAddr(address) {
