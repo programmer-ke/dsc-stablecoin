@@ -1,5 +1,211 @@
 # todo
 
+### User Story: Liquidate Undercollateralized Position (Happy Path)
+As a connected user, I want to liquidate an undercollateralized
+position by selecting a collateral token and entering a debt-to-cover
+amount, so that I receive a 10% bonus.
+
+**Acceptance Criteria:**
+- The liquidation form is visible and populated with the target’s
+  total debt.
+- The user selects a collateral token (WETH or WBTC) and enters a
+  debt-to-cover amount (> 0, ≤ total debt).
+- Clicking **Liquidate** calls `DSCEngine.liquidate(collateralAddress,
+  targetAddress, debtToCover)`.
+- After transaction confirmation, the dApp refreshes all relevant data
+  via `loadAppState()`.
+- The liquidator's wallet balance for the seized token increases (by
+  value of debt covered + 10% bonus).
+- The liquidation form resets or hides if the position becomes
+  healthy.
+
+**Scenarios:**
+- **Scenario 1: Partial liquidation**
+  - Given the target has 500 DSC debt and health factor 0.8
+  - When the user enters 200 as debt-to-cover, selects WETH, and
+    clicks Liquidate
+  - Then the transaction succeeds; the liquidator receives WETH worth
+    220 DSC (200 + 10%)
+  - And the target’s debt decreases to 300, collateral decreases
+    accordingly
+  - And the dashboard refreshes showing updated balances and health
+    factor
+
+- **Scenario 2: Full liquidation (covers all debt)**
+  - Given the target has 100 DSC debt and health factor 0.5
+  - When the user enters 100 as debt-to-cover and clicks Liquidate
+  - Then the liquidator receives collateral worth 110 DSC
+  - And the target’s debt becomes 0; health factor may become infinite
+  - And the liquidation form hides (position healthy)
+
+---
+
+### User Story: Prevent Liquidating with Zero Debt-to-Cover
+As a user, I want the **Liquidate** button to be disabled when the
+debt-to-cover amount is zero or empty, so I don't waste gas.
+
+**Acceptance Criteria:**
+- The button is disabled if the input field is blank or contains `0`.
+
+**Scenarios:**
+- **Scenario 1: Amount is 0** → button disabled.
+- **Scenario 2: Amount is empty** → button disabled.
+
+---
+
+### User Story: Prevent Liquidating When Debt-to-Cover Exceeds Target Debt
+As a user, I want the dApp to prevent me from attempting to cover more
+debt than the target owes, because the contract would revert.
+
+**Acceptance Criteria:**
+- The **Liquidate** button is disabled when `debt-to-cover > total
+  debt`.
+- A warning message is shown (e.g., "Amount exceeds target's debt").
+
+**Scenarios:**
+- **Scenario 1: Amount exceeds debt**
+  - Given the target has 200 DSC debt
+  - When the user enters 250
+  - Then the button is disabled and a warning is displayed.
+
+- **Scenario 2: Amount ≤ debt (valid)** → button enabled (if other
+  conditions met).
+
+---
+
+### User Story: Handle Contract Revert When Liquidation No Longer Possible (Health Factor OK)
+As a user, if I attempt to liquidate a position that became healthy
+before the transaction is mined, I want to see a clear error message.
+
+**Acceptance Criteria:**
+- If `liquidate` reverts with `DSCEngine__HealthFactorOk`, the dApp
+  catches the error and displays a message like "Position is no longer
+  liquidatable".
+- The form remains intact, and the user can check the position again.
+
+**Scenarios:**
+- **Scenario 1: Position healed before liquidation**
+  - Given the user started a liquidation of an unhealthy position
+  - But the target's health factor recovered to ≥ 1 (e.g., by a
+    deposit) before the transaction is mined
+  - When the transaction reverts with `DSCEngine__HealthFactorOk`
+  - Then an appropriate error is shown and the form stays open.
+
+---
+
+### User Story: Handle Contract Revert When Liquidation Doesn't Improve Health Factor
+As a user, if the liquidation would not improve the target's health
+factor (e.g., wrong collateral/token), I want to see an informative
+error.
+
+**Acceptance Criteria:**
+- If `liquidate` reverts with `DSCEngine__HealthFactorNotImproved`,
+  the dApp catches the error and displays a message explaining that
+  the liquidation did not improve the position's health.
+- The user can adjust their input and try again.
+
+**Scenarios:**
+- **Scenario 1: Liquidation fails to improve health factor**
+  - Given a target with a complex collateral mix where covering debt
+    with the selected token does not improve health
+  - When the transaction reverts with the error
+  - Then the dApp shows the error reason and keeps the form ready for
+    retry.
+
+---
+
+### User Story: Handle User Rejection of Liquidation Transaction
+As a user, if I reject the liquidation transaction in my wallet, I
+expect the dApp to cancel gracefully and show a clear message.
+
+**Acceptance Criteria:**
+- When the user rejects the transaction, the dApp catches the error.
+- A status message is shown (e.g., "Transaction cancelled").
+- The form remains filled, and the UI stays consistent.
+
+**Scenarios:**
+- **Scenario 1: User rejects in wallet**
+  - Given the user clicks Liquidate and the wallet prompt appears
+  - When the user rejects
+  - Then the dApp shows "Transaction cancelled" and the form remains
+    as is.
+
+---
+
+### User Story: Handle Network Error During Liquidation
+As a user, if a network error occurs while liquidating, I want to be
+informed so I can retry.
+
+**Acceptance Criteria:**
+- If any RPC call fails (timeout, connection issue), the dApp catches
+  the error.
+- A status message is shown (e.g., "Network error, please try again").
+- The form remains filled, and the user can retry.
+
+**Scenarios:**
+- **Scenario 1: Network error during transaction submission**
+  - Given the user clicks Liquidate
+  - When the RPC call fails due to a network issue
+  - Then the dApp shows "Network error, please try again" and the form
+    is intact.
+
+---
+
+### User Story: Refresh Dashboard After Successful Liquidation
+As a user, after a successful liquidation, I want the dashboard to
+automatically update all relevant data so I can see my new balances
+and the target's updated position.
+
+**Acceptance Criteria:**
+- After the transaction is confirmed, `loadAppState()` is triggered.
+- The liquidator's wallet balances (DSC, WETH, WBTC), health factor,
+  debt, and collateral breakdown are refreshed.
+- The liquidation form resets (or hides) and the position summary
+  updates.
+
+**Scenarios:**
+- **Scenario 1: Dashboard refreshes after liquidation**
+  - Given the user liquidates a position
+  - When the transaction is mined
+  - Then the liquidator's WETH/WBTC balance increases (including
+    bonus), debt possibly unchanged, and the UI shows fresh data.
+
+---
+
+### User Story: Show Expected Liquidation Bonus
+As a user, I want to see the estimated bonus (10% extra collateral
+value) before confirming the liquidation, so I know the profit.
+
+**Acceptance Criteria:**
+- As the user enters a debt-to-cover amount, the **Expected Bonus
+  (10%)** field updates in real-time (or on demand).
+- The value is displayed in the selected collateral token’s units (or
+  USD equivalent), using the oracle price.
+
+**Scenarios:**
+- **Scenario 1: Debt-to-cover entered**
+  - Given the user selects WETH and enters 100 DSC
+  - Then the bonus field shows the approximate amount of WETH equal to
+    10 DSC worth of that token.
+
+- **Scenario 2: Amount cleared** → bonus resets to `--`.
+
+---
+
+### User Story: Prevent Liquidation When Not Connected
+As a user, I want the **Liquidate** button to be disabled when my
+wallet is not connected or on an unsupported network.
+
+**Acceptance Criteria:**
+- The button is disabled if the wallet state is not `CONNECTED` (or in
+  progress).
+- The button is disabled if the chain ID is not supported.
+
+**Scenarios:**
+- **Scenario 1: Not connected** → button disabled.
+- **Scenario 2: Wrong network** → button disabled.
+
+---
 
 ## User Story: Inform User When No Collateral Deposited
 As a user with no collateral deposited, I want to be informed that I

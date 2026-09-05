@@ -1,3 +1,71 @@
+## Use Case: Connected User Liquidates an Undercollateralized Position
+
+**Actor:**  
+A connected user who has found an undercollateralized position and
+wants to liquidate it to earn a 10% bonus.
+
+**Preconditions:**  
+- Wallet is connected (`ConnectionState.CONNECTED`)
+- User is on Sepolia (`0xaa36a7`)
+- The `DSCEngine` contract ABI and address are available
+- An `ethers.BrowserProvider` and `Signer` have been instantiated
+- The user has already checked a target address and confirmed its
+  health factor is < 1
+- The liquidation form is visible with the target's total debt
+  populated
+
+**Trigger:**  
+The user selects a collateral token to seize, enters a debt-to-cover
+amount, and clicks **Liquidate**.
+
+**Flow:**
+
+1. The dApp reads the selected collateral token and debt-to-cover
+   amount from the form.
+2. It validates that the debt-to-cover amount is > 0 and ≤ the
+   target's total debt.
+3. The dApp calls:
+   ```solidity
+   DSCEngine.liquidate(collateralAddress, targetAddress, debtToCover)
+   ```
+4. The user confirms the transaction in their wallet.
+5. Upon success, the dApp re-fetches state via `loadAppState()`.
+6. The UI updates:
+   - The liquidator's wallet balance for the seized collateral token
+     increases (with 10% bonus).
+   - The liquidation form resets or hides if the position is now
+     healthy.
+
+**Postconditions:**  
+- The liquidator receives the seized collateral (value of debt
+  covered + 10% bonus).
+- The target's debt decreases by the covered amount.
+- The target's collateral decreases by the seized amount.
+- If the target's health factor is restored to ≥ 1, the position is no
+  longer liquidatable.
+
+**Edge Cases to Consider:**  
+- **Debt-to-cover is zero** → button is disabled; contract reverts
+  with `DSCEngine__NeedsMoreThanZero`
+- **Debt-to-cover exceeds target's debt** → dApp disables the button
+  or shows "Amount exceeds debt"
+- **Health factor is now ≥ 1** → contract reverts with
+  `DSCEngine__HealthFactorOk`; dApp should warn
+- **Liquidation doesn't improve health factor** → contract reverts
+  with `DSCEngine__HealthFactorNotImproved`
+- **User rejects transaction** → dApp shows "Transaction cancelled",
+  form remains filled
+- **Network error** → dApp catches the error, shows a network error
+  message, and allows retry
+
+---
+
+**Implementation Note:**  
+The current `ui/global.js` and `ui/contract_interaction.js` do not yet
+have a handler or service function for the **Liquidate** button
+(`#btn-liquidate`). This use case describes the intended behavior for
+that missing functionality.
+
 ## Use Case: Connected User Finds Undercollateralized Positions
 
 **Actor:**  
