@@ -144,6 +144,14 @@ function coerce(rawInput) {
     return input;
 }
 
+function normalizeAddress(address) {
+    let trimmed = address.trim();
+    if (!trimmed.startsWith("0x")) {
+        trimmed = "0x" + trimmed;
+    }
+    return trimmed;
+}
+
 // handlers
 async function switchToSupportedNetwork() {
     try {
@@ -490,7 +498,7 @@ const services = {
         }
     },
     checkLiquidation: async () => {
-        let address = liquidationAddressInput.value.trim();
+        let address = normalizeAddress(liquidationAddressInput.value);
 
         // Validate address
         if (!ethers.isAddress(address)) {
@@ -499,16 +507,19 @@ const services = {
             return;
         }
 
-	if (!address.startsWith("0x"))
-	    // prepend 0x
-	    address = "0x" + address;
-
         liquidationAddressInput.classList.remove("input-error");
         liquidationCheckInProgress.set(true);
 
+        const requestedAddress = address;
+
         try {
-            const healthFactor = await fetchHealthFactor(address);
-            const [totalDebt, totalCollateralUsd] = await fetchAccountInformation(address);
+            const healthFactor = await fetchHealthFactor(requestedAddress);
+
+            if (normalizeAddress(liquidationAddressInput.value) !== requestedAddress) return;
+
+            const [totalDebt, totalCollateralUsd] = await fetchAccountInformation(requestedAddress);
+
+            if (normalizeAddress(liquidationAddressInput.value) !== requestedAddress) return;
 
             liquidationHealthFactor.set(healthFactor);
             liquidationCollateralValue.set(totalCollateralUsd);
@@ -528,12 +539,7 @@ const services = {
         try {
             liquidationInProgress.set(true);
             const tokenName = liquidationToken.value;
-            let targetAddr = liquidationAddressInput.value.trim();
-            
-            // Fix missing 0x prefix if needed
-            if (!targetAddr.startsWith("0x") && ethers.isAddress(targetAddr)) {
-                targetAddr = "0x" + targetAddr;
-            }
+            let targetAddr = normalizeAddress(liquidationAddressInput.value);
 
             const debtToCoverWei = toWei(liquidationDebtToCover.value, 18);
             await liquidate(tokenName, targetAddr, debtToCoverWei);
@@ -696,6 +702,10 @@ if (checkLiquidationButton && liquidationAddressInput) {
     // Clear error border on input
     liquidationAddressInput.addEventListener("input", () => {
         liquidationAddressInput.classList.remove("input-error");
+        // Clear stale position data so canLiquidate doesn't use old values
+        liquidationHealthFactor.set(null);
+        liquidationCollateralValue.set(null);
+        liquidationDebt.set(null);
     });
 
     checkLiquidationButton.addEventListener("click", () => {
