@@ -40,6 +40,9 @@ const EVENT_NAME_LIST = [
     "CheckLiquidation",
     "LiquidationCheckSucceeded",
     "LiquidationCheckFailed",
+    "Liquidate",
+    "LiquidationSucceeded",
+    "LiquidationFailed",
 ];
 
 const EVENTS = EVENT_NAME_LIST.reduce((map, name) => {
@@ -118,6 +121,9 @@ const liquidationCheckInProgress = createObservable(false);
 const liquidationHealthFactor = createObservable(null);
 const liquidationCollateralValue = createObservable(null);
 const liquidationDebt = createObservable(null);
+const liquidationToken = createObservable(null);
+const liquidationDebtToCover = createObservable("0");
+const liquidationInProgress = createObservable(false);
 
 // Convert a human-readable amount (number or string) to wei as a BigInt.
 // Safely handles exponent notation from parseFloat by using toFixed.
@@ -319,6 +325,8 @@ function resetAppState() {
     liquidationCollateralValue.set(null);
     liquidationDebt.set(null);
     liquidationCheckInProgress.set(false);
+    liquidationDebtToCover.set("0");
+    liquidationInProgress.set(false);
 }
 
 async function loadAppState() {
@@ -514,6 +522,29 @@ const services = {
             liquidationCheckInProgress.set(false);
         }
     },
+    liquidate: async () => {
+        if (!canLiquidate()) return;
+
+        try {
+            liquidationInProgress.set(true);
+            const tokenName = liquidationToken.value;
+            let targetAddr = liquidationAddressInput.value.trim();
+            
+            // Fix missing 0x prefix if needed
+            if (!targetAddr.startsWith("0x") && ethers.isAddress(targetAddr)) {
+                targetAddr = "0x" + targetAddr;
+            }
+
+            const debtToCoverWei = toWei(liquidationDebtToCover.value, 18);
+            await liquidate(tokenName, targetAddr, debtToCoverWei);
+            document.dispatchEvent(EVENTS.LiquidationSucceeded);
+        } catch (error) {
+            console.error(error);
+            document.dispatchEvent(EVENTS.LiquidationFailed);
+        } finally {
+            liquidationInProgress.set(false);
+        }
+    },
 }
 
 
@@ -614,6 +645,17 @@ on(EVENTS.LiquidationCheckFailed, () => {
     liquidationDebt.set(null);
 });
 
+on(EVENTS.Liquidate, services.liquidate);
+on(EVENTS.LiquidationSucceeded, () => {
+    document.getElementById("liquidation-debt-to-cover").value = "";
+    liquidationDebtToCover.set("0");
+    document.dispatchEvent(EVENTS.LoadAppState);
+    document.dispatchEvent(EVENTS.CheckLiquidation); // Re-check to update the position card
+});
+on(EVENTS.LiquidationFailed, () => {
+    showStatus("Liquidation failed. Please try again.", "error");
+});
+
 
 // Connection button listeners
 const walletConnectionButton = document.querySelector("#connect-wallet-button");
@@ -658,6 +700,13 @@ if (checkLiquidationButton && liquidationAddressInput) {
 
     checkLiquidationButton.addEventListener("click", () => {
         document.dispatchEvent(EVENTS.CheckLiquidation);
+    });
+}
+
+const liquidateButton = document.getElementById("btn-liquidate");
+if (liquidateButton) {
+    liquidateButton.addEventListener("click", () => {
+        document.dispatchEvent(EVENTS.Liquidate);
     });
 }
 
@@ -764,6 +813,65 @@ if (maxRedeemLink) {
             const formattedBalance = ethers.formatUnits(balance, decimals);
             redeemCollateralInput.value = formattedBalance;
             collateralToRedeem.set(formattedBalance);
+        }
+    });
+}
+
+const liquidationTokenSelector = document.getElementById("liquidation-token");
+if (liquidationTokenSelector) {
+    liquidationToken.set(liquidationTokenSelector.value);
+    liquidationTokenSelector.addEventListener("change", () => {
+        liquidationToken.set(liquidationTokenSelector.value);
+    });
+}
+
+const liquidationDebtToCoverInput = document.getElementById("liquidation-debt-to-cover");
+if (liquidationDebtToCoverInput) {
+    liquidationDebtToCover.set(coerce(liquidationDebtToCoverInput.value));
+    liquidationDebtToCoverInput.addEventListener("change", () => {
+        liquidationDebtToCover.set(coerce(liquidationDebtToCoverInput.value));
+    });
+}
+
+const maxDebtLink = document.getElementById("max-debt-link");
+if (maxDebtLink) {
+    maxDebtLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        const debt = liquidationDebt.value;
+        if (debt !== null) {
+            const formatted = ethers.formatUnits(debt, 18);
+            liquidationDebtToCoverInput.value = formatted;
+            liquidationDebtToCover.set(formatted);
+        }
+    });
+}
+
+const refreshBonusLink = document.getElementById("refresh-expected-liquidation-bonus");
+if (refreshBonusLink) {
+    refreshBonusLink.addEventListener("click", async (e) => {
+        e.preventDefault();
+        
+        if (wallet.value !== ConnectionState.CONNECTED) return;
+        
+        const debtToCover = liquidationDebtToCover.value;
+        if (Number(debtToCover) <= 0) {
+            document.getElementById("liquidation-bonus").textContent = "--";
+            return;
+        }
+
+        try {
+            const tokenName = liquidationToken.value;
+            const debtToCoverWei = toWei(debtToCover, 18); // DSC is 18 decimals
+            const bonusWei = await fetchExpectedLiquidationBonus(tokenName, debtToCoverWei);
+            
+            const decimals = ERC20_CONFIG[tokenName].decimals;
+            const formattedBonus = ethers.formatUnits(bonusWei, decimals);
+            
+            document.getElementById("liquidation-bonus").textContent = formattedBonus;
+        } catch (err) {
+            console.error("Failed to fetch expected bonus", err);
+            document.getElementById("liquidation-bonus").textContent = "--";
+            showStatus("Could not calculate bonus. Please try again.", "error");
         }
     });
 }
@@ -1046,6 +1154,28 @@ function updateCheckLiquidationButton() {
     checkLiquidationButton.disabled = !(notBusy && isConnected);
 }
 
+function canLiquidate() {
+    const isConnected = wallet.value === ConnectionState.CONNECTED;
+    if (!isConnected) return false;
+    if (Number(liquidationDebtToCover.value) <= 0) return false;
+
+    const debt = liquidationDebt.value;
+    if (debt === null) return false; // Need target debt to validate
+
+    const debtToCoverWei = toWei(liquidationDebtToCover.value, 18);
+    if (debtToCoverWei > debt) return false;
+
+    return true;
+}
+
+function updateLiquidateButton() {
+    const notBusy = !liquidationInProgress.value;
+    const btn = document.getElementById("btn-liquidate");
+    if (btn) {
+        btn.disabled = !(canLiquidate() && notBusy);
+    }
+}
+
 collateralToDeposit.onChange(updateDepositOnlyButton);
 collateralToken.onChange(updateDepositOnlyButton);
 wallet.onChange(updateDepositOnlyButton);
@@ -1086,6 +1216,12 @@ burnAndRedeemInProgress.onChange(updateBurnAndRedeemButton);
 
 liquidationCheckInProgress.onChange(updateCheckLiquidationButton);
 wallet.onChange(updateCheckLiquidationButton);
+
+liquidationDebtToCover.onChange(updateLiquidateButton);
+liquidationToken.onChange(updateLiquidateButton);
+liquidationDebt.onChange(updateLiquidateButton);
+wallet.onChange(updateLiquidateButton);
+liquidationInProgress.onChange(updateLiquidateButton);
 
 wallet.onChange(state => {
     const btn = walletConnectionButton;
@@ -1259,6 +1395,10 @@ liquidationCollateralValue.onChange(value => {
 liquidationDebt.onChange(value => {
     const el = document.getElementById("liquidation-debt");
     el.textContent = value === null ? "--" : ethers.formatUnits(value);
+    const totalDebtSpan = document.getElementById("liquidation-total-debt");
+    if (totalDebtSpan) {
+        totalDebtSpan.textContent = value === null ? "--" : ethers.formatUnits(value);
+    }
 });
 
 

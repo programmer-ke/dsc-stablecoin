@@ -167,3 +167,30 @@ async function burnAndRedeemCollateral(tokenName, burnAmount, redeemAmount) {
     const tx = await engine.redeemCollateralForDsc(config.address, redeemAmount, burnAmount);
     await tx.wait();
 }
+
+// Liquidate undercollateralized position
+async function liquidate(collateralTokenName, targetAddress, debtToCoverWei) {
+    const engine = await getDscEngineWrite();
+    const config = ERC20_CONFIG[collateralTokenName];
+    
+    // Approve DSCEngine to spend DSC tokens for the debt to cover
+    const dscToken = new ethers.Contract(DSC_ADDRESS, DSC_ABI, await getSigner());
+    const txApprove = await dscToken.approve(DSC_ENGINE_ADDRESS, debtToCoverWei);
+    await txApprove.wait();
+
+    const tx = await engine.liquidate(config.address, targetAddress, debtToCoverWei);
+    await tx.wait();
+}
+
+// Fetch expected liquidation bonus for a given token and debt to cover
+async function fetchExpectedLiquidationBonus(tokenName, debtToCoverWei) {
+    const engine = getDscEngineRead();
+    const tokenAddress = ERC20_CONFIG[tokenName].address;
+    
+    // Hardcoded bonus (10%) and precision (100)
+    const bonusUsd = (debtToCoverWei * 10n) / 100n;
+    
+    // Convert bonus USD value to the collateral token amount
+    const bonusTokenAmount = await engine.getTokenAmountFromUsd(tokenAddress, bonusUsd);
+    return bonusTokenAmount;
+}
