@@ -121,6 +121,7 @@ const liquidationCheckInProgress = createObservable(false);
 const liquidationHealthFactor = createObservable(null);
 const liquidationCollateralValue = createObservable(null);
 const liquidationDebt = createObservable(null);
+const liquidationCheckedAddress = createObservable(null);
 const liquidationToken = createObservable(null);
 const liquidationDebtToCover = createObservable("0");
 const liquidationInProgress = createObservable(false);
@@ -332,6 +333,7 @@ function resetAppState() {
     liquidationHealthFactor.set(null);
     liquidationCollateralValue.set(null);
     liquidationDebt.set(null);
+    liquidationCheckedAddress.set(null);
     liquidationCheckInProgress.set(false);
     liquidationDebtToCover.set("0");
     liquidationInProgress.set(false);
@@ -521,6 +523,7 @@ const services = {
 
             if (normalizeAddress(liquidationAddressInput.value) !== requestedAddress) return;
 
+            liquidationCheckedAddress.set(requestedAddress);
             liquidationHealthFactor.set(healthFactor);
             liquidationCollateralValue.set(totalCollateralUsd);
             liquidationDebt.set(totalDebt);
@@ -539,7 +542,7 @@ const services = {
         try {
             liquidationInProgress.set(true);
             const tokenName = liquidationToken.value;
-            let targetAddr = normalizeAddress(liquidationAddressInput.value);
+            const targetAddr = liquidationCheckedAddress.value;
 
             const debtToCoverWei = toWei(liquidationDebtToCover.value, 18);
             await liquidate(tokenName, targetAddr, debtToCoverWei);
@@ -649,6 +652,7 @@ on(EVENTS.LiquidationCheckFailed, () => {
     liquidationHealthFactor.set(null);
     liquidationCollateralValue.set(null);
     liquidationDebt.set(null);
+    liquidationCheckedAddress.set(null);
 });
 
 on(EVENTS.Liquidate, services.liquidate);
@@ -706,6 +710,7 @@ if (checkLiquidationButton && liquidationAddressInput) {
         liquidationHealthFactor.set(null);
         liquidationCollateralValue.set(null);
         liquidationDebt.set(null);
+        liquidationCheckedAddress.set(null);
     });
 
     checkLiquidationButton.addEventListener("click", () => {
@@ -1169,6 +1174,9 @@ function canLiquidate() {
     if (!isConnected) return false;
     if (Number(liquidationDebtToCover.value) <= 0) return false;
 
+    // Must have a successfully checked address
+    if (liquidationCheckedAddress.value === null) return false;
+
     const debt = liquidationDebt.value;
     if (debt === null) return false; // Need target debt to validate
 
@@ -1230,6 +1238,7 @@ wallet.onChange(updateCheckLiquidationButton);
 liquidationDebtToCover.onChange(updateLiquidateButton);
 liquidationToken.onChange(updateLiquidateButton);
 liquidationDebt.onChange(updateLiquidateButton);
+liquidationCheckedAddress.onChange(updateLiquidateButton);
 wallet.onChange(updateLiquidateButton);
 liquidationInProgress.onChange(updateLiquidateButton);
 
