@@ -53,7 +53,7 @@
       <ms-row class="g-3">
         <ms-column class="span-12 md-6">
           <dashboard-card>
-            <h2>Health Factor </h2>
+            <h2>Health Factor <small>≥1.00 ✓</small></h2>
             <dashboard-number class="health-factor" data-state="unknown">--</dashboard-number>
           </dashboard-card>
         </ms-column>
@@ -317,7 +317,8 @@
       </ms-row>
 
       <!-- Liquidation Form (hidden until health factor < 1) -->
-      <ms-row id="liquidation-form" >
+      <br />
+      <ms-row id="liquidation-form" hidden>
         <ms-column class="span-12 sm-6">
           <ms-row>
             <ms-column class="span-12">
@@ -328,7 +329,7 @@
               </select>
             </ms-column>
             <ms-column class="span-12">
-              <label for="liquidation-debt-to-cover">Debt to Cover</label>
+              <label for="liquidation-debt-to-cover">Debt to Cover <small>(in DSC)</small></label>
               <input type="number" id="liquidation-debt-to-cover" placeholder="0.0" min="0" step="any" />
               <small>Total debt: <span id="liquidation-total-debt">--</span> <a href="#" id="max-debt-link">MAX</a></small>
             </ms-column>
@@ -338,7 +339,7 @@
         <ms-column class="span-12 sm-6">
           <ms-row>
             <ms-column class="span-12">
-              <label>Expected Bonus (10%)</label>
+              <label>Expected Collateral Bonus (10%) <small><a href="#" id="refresh-expected-liquidation-bonus">[refresh]</a></small></label>
               <dashboard-number id="liquidation-bonus">--</dashboard-number>
               <small>You receive 10% extra collateral value</small>
             </ms-column>

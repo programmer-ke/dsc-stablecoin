@@ -22,6 +22,7 @@ dashboard-number {
     text-overflow: ellipsis;
 }
 
+#liquidation-hf[data-state="safe"],
 #burn-redeem-preview-new-hf[data-state="safe"],
 #deposit-mint-preview-new-hf[data-state="safe"],
 dashboard-number.health-factor[data-state="safe"] {
@@ -32,6 +33,7 @@ dashboard-number.health-factor[data-state="warning"] {
     color: #f57c00; /* orange */
 }
 
+#liquidation-hf[data-state="alert"],
 #burn-redeem-preview-new-hf[data-state="alert"],
 #deposit-mint-preview-new-hf[data-state="alert"],
 dashboard-number.health-factor[data-state="alert"] {
@@ -119,4 +121,9 @@ status-message.success {
   background: #e6ffe6;
   color: #006600;
   border: 1px solid #006600;
+}
+
+/* Error state for address input */
+.input-error {
+    border-color: #c62828;
 }
