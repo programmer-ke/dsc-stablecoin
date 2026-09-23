@@ -1,7 +1,12 @@
 /* The main UI logic */
 
-const SUPPORTED_CHAIN_ID = "0xaa36a7";
-const SUPPORTED_NETWORK_NAME = "Sepolia Testnet";
+const SUPPORTED_CHAIN_ID = "0xa";
+const SUPPORTED_NETWORK_NAME = "Optimism mainnet";
+const RPC_URLS = ["https://mainnet.optimism.io"];
+const BLOCK_EXPLORER_URLS = ["https://optimistic.etherscan.io"];
+const CURRENCY_NAME = "Ether";
+const CURRENCY_SYMBOL = "ETH";
+const CURRENCY_DECIMALS = 18;
 
 
 const EVENT_NAME_LIST = [
@@ -264,12 +269,12 @@ async function promptUserToConfigureNetwork() {
             params: [{
                 chainId: SUPPORTED_CHAIN_ID,
                 chainName: SUPPORTED_NETWORK_NAME,
-                rpcUrls: ['https://rpc.sepolia.org'],
-                blockExplorerUrls: ['https://sepolia.etherscan.io'],
+                rpcUrls: RPC_URLS,
+                blockExplorerUrls: BLOCK_EXPLORER_URLS,
                 nativeCurrency: {
-                    name: 'SepoliaETH',
-                    symbol: 'ETH',
-                    decimals: 18,
+                    name: CURRENCY_NAME,
+                    symbol: CURRENCY_SYMBOL,
+                    decimals: CURRENCY_DECIMALS,
                 },
             }],
         });
@@ -278,7 +283,7 @@ async function promptUserToConfigureNetwork() {
     } catch (addError) {
         // User rejected or method unavailable – fallback to manual instructions
         showStatus(
-            `Please add the ${SUPPORTED_NETWORK_NAME} network manually in your wallet. Chain ID: 11155111, RPC: https://rpc.sepolia.org`,
+            `Please add the ${SUPPORTED_NETWORK_NAME} network manually in your wallet. Chain ID: ${parseInt(SUPPORTED_CHAIN_ID, 16)}, RPC: ${RPC_URLS[0]}`,
             'error'
         );
     }

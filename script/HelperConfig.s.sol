@@ -25,6 +25,10 @@ contract HelperConfig is Script {
     constructor() {
         if (block.chainid == 11155111) {
             activeNetworkConfig = getSepoliaEthConfig();
+        } else if (block.chainid == 1) {
+            activeNetworkConfig = getEthMainnetConfig();
+        } else if (block.chainid == 10) {
+            activeNetworkConfig = getOptimismConfig();
         } else {
             activeNetworkConfig = getOrCreateAnvilEthConfig();
         }
@@ -37,6 +41,26 @@ contract HelperConfig is Script {
             weth: 0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14,
             wbtc: 0x92f3B59a79bFf5dc60c0d59eA13a44D082B2bdFC,
             deployerAddress: vm.envAddress("SEPOLIA_DEPLOYER_ADDRESS")
+        });
+    }
+
+    function getEthMainnetConfig() public view returns (NetworkConfig memory) {
+        return NetworkConfig({
+            wethUsdPriceFeed: 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419,
+            wbtcUsdPriceFeed: 0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c,
+            weth: 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,
+            wbtc: 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599,
+            deployerAddress: vm.envAddress("ETH_DEPLOYER_ADDRESS")
+        });
+    }
+
+    function getOptimismConfig() public view returns (NetworkConfig memory) {
+        return NetworkConfig({
+            wethUsdPriceFeed: 0x13e3Ee699D1909E989722E753853AE30b17e08c5,
+            wbtcUsdPriceFeed: 0xD702DD976Fb76Fffc2D3963D037dfDae5b04E593,
+            weth: 0x4200000000000000000000000000000000000006,
+            wbtc: 0x68f180fcCe6836688e9084f035309E29Bf0A2095,
+            deployerAddress: vm.envAddress("OP_DEPLOYER_ADDRESS")
         });
     }
 

@@ -1,14 +1,14 @@
 /* Contract config and interaction */
 
-const DSC_ADDRESS = "0x3788a945770b35c7909cc3037ca0d56b03f6edc0";
-const DSC_ENGINE_ADDRESS = "0xbf66637b035efce43dd8b930cc7edadb87f08afc";
-const WBTC_ADDRESS = "0x92f3B59a79bFf5dc60c0d59eA13a44D082B2bdFC";
-const WETH_ADDRESS = "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14";
+const DSC_ADDRESS = "0x2f8bf1a575a2d3cf219c9434d8b9ab5214af8077";
+const DSC_ENGINE_ADDRESS = "0x9a1e69791bade995768cf6ff0a98de37008a138a";
+const WBTC_ADDRESS = "0x68f180fcCe6836688e9084f035309E29Bf0A2095";
+const WETH_ADDRESS = "0x4200000000000000000000000000000000000006";
 
 const ERC20_CONFIG = {
     dsc: { address: DSC_ADDRESS, abi: DSC_ABI, decimals: 18 },
-    weth: { address: WETH_ADDRESS, abi: SEPOLIA_WETH_ABI, decimals: 18 },
-    wbtc: { address: WBTC_ADDRESS, abi: SEPOLIA_WBTC_ABI, decimals: 8 },
+    weth: { address: WETH_ADDRESS, abi: WETH_ABI, decimals: 18 },
+    wbtc: { address: WBTC_ADDRESS, abi: WBTC_ABI, decimals: 8 },
 };
 
 let _provider = null;

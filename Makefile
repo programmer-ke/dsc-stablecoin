@@ -37,6 +37,15 @@ ifeq ($(findstring --network base,$(ARGS)),--network base)
 	NETWORK_ARGS := --rpc-url $(BASE_RPC_URL) --account $(BASE_ACCOUNT) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
 endif
 
+ifeq ($(findstring --network ethereum,$(ARGS)),--network ethereum)
+	NETWORK_ARGS := --rpc-url $(ETH_RPC_URL) --account $(ETH_ACCOUNT) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+endif
+
+ifeq ($(findstring --network optimism,$(ARGS)),--network optimism)
+	NETWORK_ARGS := --rpc-url $(OP_RPC_URL) --account $(OP_ACCOUNT) --broadcast --verify --etherscan-api-key $(ETHERSCAN_API_KEY) -vvvv
+endif
+
+
 deploy:
 	@forge script script/DeployDSC.s.sol:DeployDSC $(NETWORK_ARGS)
 
